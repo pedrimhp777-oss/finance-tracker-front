@@ -124,32 +124,24 @@ export const Dashboard: React.FC = () => {
     }
   };
 
-  const handleExportCSV = () => {
-    if (filteredTransactions.length === 0) {
-      toast.error("Nenhuma transação disponível para exportar.");
-      return;
+  const handleExportExcel = async () => {
+    try {
+      const response = await api.get('/transactions/export/excel', {
+        responseType: 'blob'
+      });
+
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `relatorio_financeiro_${new Date().toISOString().slice(0, 10)}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success("Relatório Excel baixado!");
+    } catch (err) {
+      toast.error("Erro ao exportar relatório em Excel.");
     }
-
-    const headers = ["Descrição", "Categoria", "Tipo", "Valor (R$)", "Data"];
-    const rows = filteredTransactions.map((t) => [
-      `"${t.description.replace(/"/g, '""')}"`,
-      `"${t.category}"`,
-      t.type === 'income' ? 'Entrada' : 'Saída',
-      t.amount.toFixed(2).replace('.', ','),
-      t.date ? new Date(t.date).toLocaleDateString('pt-BR') : 'N/A'
-    ]);
-
-    const csvContent = [headers.join(';'), ...rows.map((r) => r.join(';'))].join('\n');
-    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-
-    link.href = url;
-    link.setAttribute('download', `relatorio_financeiro_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast.success("Relatório CSV baixado!");
   };
 
   return (
@@ -329,10 +321,10 @@ export const Dashboard: React.FC = () => {
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold text-white">Histórico de Transações</h3>
               <button
-                onClick={handleExportCSV}
+                onClick={handleExportExcel}
                 className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-medium px-3 py-2 rounded-lg border border-slate-600 transition cursor-pointer"
               >
-                <Download className="w-4 h-4 text-emerald-400" /> Exportar CSV
+                <Download className="w-4 h-4 text-emerald-400" /> Exportar Excel
               </button>
             </div>
 
