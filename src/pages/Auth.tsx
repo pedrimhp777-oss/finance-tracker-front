@@ -26,12 +26,12 @@ export const Auth: React.FC = () => {
         await login(res.data.access_token);
       } else {
         await api.post('/auth/register', { name, email, password });
-        alert('Conta criada com sucesso! Fa�a login.');
+        alert('Conta criada com sucesso! Faça login.');
         setIsLogin(true);
       }
     } catch (err: any) {
       console.error('Erro na resposta do backend:', err.response?.data || err.message);
-      alert(err.response?.data?.detail || 'Erro na autentica��o. Verifique seus dados.');
+      alert(err.response?.data?.detail || 'Erro na autenticação. Verifique seus dados.');
     }
   };
 
@@ -87,7 +87,7 @@ export const Auth: React.FC = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full bg-slate-900 border border-slate-700 rounded-lg py-2 pl-9 pr-3 text-white text-sm focus:outline-none focus:border-emerald-500"
-                placeholder="��������"
+                placeholder="••••••••"
               />
             </div>
           </div>
@@ -102,9 +102,10 @@ export const Auth: React.FC = () => {
           onClick={() => setIsLogin(!isLogin)}
           className="w-full mt-4 text-xs text-slate-400 hover:text-white transition"
         >
-          {isLogin ? 'N�o tem uma conta? Cadastre-se' : 'J� tem conta? Fa�a login'}
+          {isLogin ? 'Não tem uma conta? Cadastre-se' : 'Já tem conta? Faça login'}
         </button>
       </div>
     </div>
   );
 };
+
