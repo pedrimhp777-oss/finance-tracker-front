@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../services/api';
-import type { Transaction, Summary, TransactionCategory, TransactionType } from '../types/finance';
+import type { Transaction, TransactionCategory, TransactionType } from '../types/finance';
 import { LogOut, TrendingUp, TrendingDown, DollarSign, Plus, Trash2, Download, Pencil, X, AlertTriangle } from 'lucide-react';
 import { FinanceCharts } from '../components/FinanceCharts';
 import { FinanceFilters } from '../components/FinanceFilters';
@@ -10,16 +10,15 @@ import toast, { Toaster } from 'react-hot-toast';
 export const Dashboard: React.FC = () => {
   const { logout } = useAuth();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [summary, setSummary] = useState<Summary>({ total_income: 0, total_expense: 0, balance: 0 });
   const [loading, setLoading] = useState(true);
 
-  // Estados do formulário
+  // Estados do formul�rio
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [type, setType] = useState<TransactionType>('income');
   const [category, setCategory] = useState<TransactionCategory>('Outros');
 
-  // Estados de Edição e Modal de Deleção
+  // Estados de Edi��o e Modal de Dele��o
   const [editingId, setEditingId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
@@ -30,13 +29,18 @@ export const Dashboard: React.FC = () => {
   const [selectedYear, setSelectedYear] = useState('');
 
   const fetchData = async () => {
+    setLoading(true);
     try {
-      const [transRes, summaryRes] = await Promise.all([
-        api.get('/transactions'),
-        api.get('/transactions/summary')
-      ]);
-      setTransactions(transRes.data);
-      setSummary(summaryRes.data);
+      const allTransactions: Transaction[] = [];
+      const pageSize = 500;
+      for (let skip = 0; ; skip += pageSize) {
+        const { data } = await api.get<Transaction[]>('/transactions/', {
+          params: { skip, limit: pageSize },
+        });
+        allTransactions.push(...data);
+        if (data.length < pageSize) break;
+      }
+      setTransactions(allTransactions);
     } catch (err) {
       toast.error("Erro ao carregar os dados financeiros.");
     } finally {
@@ -66,6 +70,16 @@ export const Dashboard: React.FC = () => {
       return matchesSearch && matchesCategory && matchesMonth && matchesYear;
     });
   }, [transactions, searchTerm, selectedCategory, selectedMonth, selectedYear]);
+
+  const summary = useMemo(() => {
+    const total_income = filteredTransactions
+      .filter((t) => t.type === 'income')
+      .reduce((sum, t) => sum + t.amount, 0);
+    const total_expense = filteredTransactions
+      .filter((t) => t.type === 'expense')
+      .reduce((sum, t) => sum + t.amount, 0);
+    return { total_income, total_expense, balance: total_income - total_expense };
+  }, [filteredTransactions]);
 
   const handleEditClick = (item: Transaction) => {
     setEditingId(item.id);
@@ -97,15 +111,15 @@ export const Dashboard: React.FC = () => {
     try {
       if (editingId !== null) {
         await api.put(`/transactions/${editingId}`, payload);
-        toast.success("Transação atualizada com sucesso!");
+        toast.success("Transa��o atualizada com sucesso!");
       } else {
         await api.post('/transactions', payload);
-        toast.success("Transação adicionada!");
+        toast.success("Transa��o adicionada!");
       }
       handleCancelEdit();
       fetchData();
     } catch (err) {
-      toast.error(editingId !== null ? "Erro ao atualizar transação." : "Erro ao adicionar transação.");
+      toast.error(editingId !== null ? "Erro ao atualizar transa��o." : "Erro ao adicionar transa��o.");
     }
   };
 
@@ -114,11 +128,11 @@ export const Dashboard: React.FC = () => {
 
     try {
       await api.delete(`/transactions/${deletingId}`);
-      toast.success("Transação removida.");
+      toast.success("Transa��o removida.");
       if (editingId === deletingId) handleCancelEdit();
       fetchData();
     } catch (err) {
-      toast.error("Erro ao remover transação.");
+      toast.error("Erro ao remover transa��o.");
     } finally {
       setDeletingId(null);
     }
@@ -127,7 +141,13 @@ export const Dashboard: React.FC = () => {
   const handleExportExcel = async () => {
     try {
       const response = await api.get('/transactions/export/excel', {
-        responseType: 'blob'
+        responseType: 'blob',
+        params: {
+          month: selectedMonth || undefined,
+          year: selectedYear || undefined,
+          category: selectedCategory || undefined,
+          search: searchTerm || undefined,
+        },
       });
 
       const url = window.URL.createObjectURL(new Blob([response.data]));
@@ -138,9 +158,9 @@ export const Dashboard: React.FC = () => {
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
-      toast.success("Relatório Excel baixado!");
+      toast.success("Relat�rio Excel baixado!");
     } catch (err) {
-      toast.error("Erro ao exportar relatório em Excel.");
+      toast.error("Erro ao exportar relat�rio em Excel.");
     }
   };
 
@@ -188,7 +208,7 @@ export const Dashboard: React.FC = () => {
 
           <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700">
             <div className="flex justify-between items-center mb-2">
-              <span className="text-slate-400 text-sm">Saídas</span>
+              <span className="text-slate-400 text-sm">Sa�das</span>
               <div className="p-2 bg-red-500/10 rounded-lg text-red-400">
                 <TrendingDown className="w-5 h-5" />
               </div>
@@ -222,17 +242,17 @@ export const Dashboard: React.FC = () => {
           categories={categories}
         />
 
-        {/* Gráficos */}
+        {/* Gr�ficos */}
         <FinanceCharts transactions={filteredTransactions} />
 
-        {/* Conteúdo Principal (Formulário + Tabela) */}
+        {/* Conte�do Principal (Formul�rio + Tabela) */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           
-          {/* Formulário */}
+          {/* Formul�rio */}
           <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 h-fit">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold text-white">
-                {editingId !== null ? 'Editar Transação' : 'Nova Transação'}
+                {editingId !== null ? 'Editar Transa��o' : 'Nova Transa��o'}
               </h3>
               {editingId !== null && (
                 <button
@@ -246,13 +266,13 @@ export const Dashboard: React.FC = () => {
 
             <form onSubmit={handleSaveTransaction} className="space-y-4">
               <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1">Descrição</label>
+                <label className="block text-xs font-medium text-slate-400 mb-1">Descri��o</label>
                 <input
                   type="text"
                   required
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Ex: Salário, Mercado"
+                  placeholder="Ex: Sal�rio, Mercado"
                   className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-white text-sm focus:outline-none focus:border-emerald-500"
                 />
               </div>
@@ -279,7 +299,7 @@ export const Dashboard: React.FC = () => {
                     className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-white text-sm focus:outline-none focus:border-emerald-500"
                   >
                     <option value="income">Entrada</option>
-                    <option value="expense">Saída</option>
+                    <option value="expense">Sa�da</option>
                   </select>
                 </div>
 
@@ -290,11 +310,11 @@ export const Dashboard: React.FC = () => {
                     onChange={(e) => setCategory(e.target.value as TransactionCategory)}
                     className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-white text-sm focus:outline-none focus:border-emerald-500"
                   >
-                    <option value="Alimentação">Alimentação</option>
+                    <option value="Alimenta��o">Alimenta��o</option>
                     <option value="Transporte">Transporte</option>
                     <option value="Moradia">Moradia</option>
-                    <option value="Saúde">Saúde</option>
-                    <option value="Educação">Educação</option>
+                    <option value="Sa�de">Sa�de</option>
+                    <option value="Educa��o">Educa��o</option>
                     <option value="Lazer">Lazer</option>
                     <option value="Trabalho">Trabalho</option>
                     <option value="Outros">Outros</option>
@@ -311,15 +331,15 @@ export const Dashboard: React.FC = () => {
                 }`}
               >
                 {editingId !== null ? <Pencil className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-                {editingId !== null ? 'Salvar Alterações' : 'Adicionar'}
+                {editingId !== null ? 'Salvar Altera��es' : 'Adicionar'}
               </button>
             </form>
           </div>
 
-          {/* Tabela de Transações */}
+          {/* Tabela de Transa��es */}
           <div className="lg:col-span-2 bg-slate-800 p-6 rounded-2xl border border-slate-700">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-white">Histórico de Transações</h3>
+              <h3 className="text-lg font-semibold text-white">Hist�rico de Transa��es</h3>
               <button
                 onClick={handleExportExcel}
                 className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-medium px-3 py-2 rounded-lg border border-slate-600 transition cursor-pointer"
@@ -331,17 +351,17 @@ export const Dashboard: React.FC = () => {
             {loading ? (
               <p className="text-slate-400 text-sm text-center py-8">Carregando...</p>
             ) : filteredTransactions.length === 0 ? (
-              <p className="text-slate-400 text-sm text-center py-8">Nenhuma transação encontrada.</p>
+              <p className="text-slate-400 text-sm text-center py-8">Nenhuma transa��o encontrada.</p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm text-slate-300">
                   <thead className="border-b border-slate-700 text-slate-400">
                     <tr>
-                      <th className="pb-3">Descrição</th>
+                      <th className="pb-3">Descri��o</th>
                       <th className="pb-3">Categoria</th>
                       <th className="pb-3">Data</th>
                       <th className="pb-3">Valor</th>
-                      <th className="pb-3 text-right">Ações</th>
+                      <th className="pb-3 text-right">A��es</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-700/50">
@@ -389,7 +409,7 @@ export const Dashboard: React.FC = () => {
 
       </div>
 
-      {/* Modal de Confirmação de Deleção */}
+      {/* Modal de Confirma��o de Dele��o */}
       {deletingId !== null && (
         <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6 max-w-sm w-full space-y-4 shadow-xl">
@@ -397,10 +417,10 @@ export const Dashboard: React.FC = () => {
               <div className="p-2 bg-red-500/10 rounded-xl">
                 <AlertTriangle className="w-6 h-6" />
               </div>
-              <h4 className="text-lg font-bold text-white">Excluir Transação?</h4>
+              <h4 className="text-lg font-bold text-white">Excluir Transa��o?</h4>
             </div>
             <p className="text-slate-400 text-sm">
-              Esta ação é permanente e não poderá ser desfeita no seu histórico financeiro.
+              Esta a��o � permanente e n�o poder� ser desfeita no seu hist�rico financeiro.
             </p>
             <div className="flex items-center justify-end gap-3 pt-2">
               <button
