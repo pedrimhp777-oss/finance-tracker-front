@@ -7,7 +7,7 @@ const MainContent: React.FC = () => {
   const { authenticated, loading } = useAuth();
 
   if (loading) {
-    return <div className="min-h-screen bg-slate-900 text-slate-300 flex items-center justify-center">Verificando sess�o...</div>;
+    return <div className="min-h-screen bg-slate-900 text-slate-300 flex items-center justify-center">Verificando sessão...</div>;
   }
 
   return authenticated ? <Dashboard /> : <Auth />;
@@ -20,3 +20,4 @@ export default function App() {
     </AuthProvider>
   );
 }
+
