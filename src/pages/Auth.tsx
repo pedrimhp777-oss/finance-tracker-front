@@ -55,6 +55,7 @@ export const Auth: React.FC = () => {
                 <input
                   type="text"
                   required
+                  maxLength={100}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="w-full bg-slate-900 border border-slate-700 rounded-lg py-2 pl-9 pr-3 text-white text-sm focus:outline-none focus:border-emerald-500"
@@ -84,6 +85,7 @@ export const Auth: React.FC = () => {
               <input
                 type="password"
                 required
+                minLength={8}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full bg-slate-900 border border-slate-700 rounded-lg py-2 pl-9 pr-3 text-white text-sm focus:outline-none focus:border-emerald-500"
