@@ -147,6 +147,7 @@ export const Dashboard: React.FC = () => {
           year: selectedYear || undefined,
           category: selectedCategory || undefined,
           search: searchTerm || undefined,
+          timezone_name: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
         },
       });
 
