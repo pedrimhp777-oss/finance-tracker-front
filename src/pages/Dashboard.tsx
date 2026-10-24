@@ -270,6 +270,7 @@ export const Dashboard: React.FC = () => {
                 <input
                   type="text"
                   required
+                  maxLength={240}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Ex: Salário, Mercado"
@@ -282,6 +283,8 @@ export const Dashboard: React.FC = () => {
                 <input
                   type="number"
                   step="0.01"
+                  min="0.01"
+                  max="9999999999.99"
                   required
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
