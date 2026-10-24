@@ -23,7 +23,7 @@ export const Auth: React.FC = () => {
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         });
 
-        login(res.data.access_token);
+        await login(res.data.access_token);
       } else {
         await api.post('/auth/register', { name, email, password });
         alert('Conta criada com sucesso! Faça login.');
@@ -108,3 +108,4 @@ export const Auth: React.FC = () => {
     </div>
   );
 };
+

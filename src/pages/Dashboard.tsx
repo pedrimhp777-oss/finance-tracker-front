@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../services/api';
-import type { Transaction, Summary, TransactionCategory, TransactionType } from '../types/finance';
+import type { Transaction, TransactionCategory, TransactionType } from '../types/finance';
 import { LogOut, TrendingUp, TrendingDown, DollarSign, Plus, Trash2, Download, Pencil, X, AlertTriangle } from 'lucide-react';
 import { FinanceCharts } from '../components/FinanceCharts';
 import { FinanceFilters } from '../components/FinanceFilters';
@@ -10,7 +10,6 @@ import toast, { Toaster } from 'react-hot-toast';
 export const Dashboard: React.FC = () => {
   const { logout } = useAuth();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [summary, setSummary] = useState<Summary>({ total_income: 0, total_expense: 0, balance: 0 });
   const [loading, setLoading] = useState(true);
 
   // Estados do formulário
@@ -30,13 +29,18 @@ export const Dashboard: React.FC = () => {
   const [selectedYear, setSelectedYear] = useState('');
 
   const fetchData = async () => {
+    setLoading(true);
     try {
-      const [transRes, summaryRes] = await Promise.all([
-        api.get('/transactions'),
-        api.get('/transactions/summary')
-      ]);
-      setTransactions(transRes.data);
-      setSummary(summaryRes.data);
+      const allTransactions: Transaction[] = [];
+      const pageSize = 500;
+      for (let skip = 0; ; skip += pageSize) {
+        const { data } = await api.get<Transaction[]>('/transactions/', {
+          params: { skip, limit: pageSize },
+        });
+        allTransactions.push(...data);
+        if (data.length < pageSize) break;
+      }
+      setTransactions(allTransactions);
     } catch (err) {
       toast.error("Erro ao carregar os dados financeiros.");
     } finally {
@@ -66,6 +70,16 @@ export const Dashboard: React.FC = () => {
       return matchesSearch && matchesCategory && matchesMonth && matchesYear;
     });
   }, [transactions, searchTerm, selectedCategory, selectedMonth, selectedYear]);
+
+  const summary = useMemo(() => {
+    const total_income = filteredTransactions
+      .filter((t) => t.type === 'income')
+      .reduce((sum, t) => sum + t.amount, 0);
+    const total_expense = filteredTransactions
+      .filter((t) => t.type === 'expense')
+      .reduce((sum, t) => sum + t.amount, 0);
+    return { total_income, total_expense, balance: total_income - total_expense };
+  }, [filteredTransactions]);
 
   const handleEditClick = (item: Transaction) => {
     setEditingId(item.id);
@@ -127,7 +141,13 @@ export const Dashboard: React.FC = () => {
   const handleExportExcel = async () => {
     try {
       const response = await api.get('/transactions/export/excel', {
-        responseType: 'blob'
+        responseType: 'blob',
+        params: {
+          month: selectedMonth || undefined,
+          year: selectedYear || undefined,
+          category: selectedCategory || undefined,
+          search: searchTerm || undefined,
+        },
       });
 
       const url = window.URL.createObjectURL(new Blob([response.data]));
@@ -423,3 +443,4 @@ export const Dashboard: React.FC = () => {
     </div>
   );
 };
+
