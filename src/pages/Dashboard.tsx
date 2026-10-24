@@ -37,7 +37,11 @@ export const Dashboard: React.FC = () => {
         const { data } = await api.get<Transaction[]>('/transactions/', {
           params: { skip, limit: pageSize },
         });
-        allTransactions.push(...data);
+        const normalizedData = data.map((transaction) => ({
+          ...transaction,
+          amount: Number(transaction.amount),
+        }));
+        allTransactions.push(...normalizedData);
         if (data.length < pageSize) break;
       }
       setTransactions(allTransactions);
