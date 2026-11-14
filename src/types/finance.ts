@@ -1,6 +1,6 @@
 export type TransactionType = 'income' | 'expense';
 
-export type TransactionCategory = 
+export type TransactionCategory =
   | 'Alimentação'
   | 'Transporte'
   | 'Moradia'
@@ -16,8 +16,8 @@ export interface Transaction {
   amount: number;
   type: TransactionType;
   category: TransactionCategory;
-  created_at: string;
-  date?: string;
+  date: string;
+  user_id?: number;
 }
 
 export interface Summary {
@@ -35,4 +35,20 @@ export interface User {
 export interface AuthResponse {
   access_token: string;
   token_type: string;
+}
+
+/** Parâmetros de filtro compartilhados entre listagem, resumo e exportação. */
+export interface TransactionFilters {
+  month?: string;
+  year?: string;
+  category?: string;
+  search?: string;
+}
+
+/** Dados de formulário de transação (criar/editar). */
+export interface TransactionPayload {
+  description: string;
+  amount: number;
+  type: TransactionType;
+  category: TransactionCategory;
 }

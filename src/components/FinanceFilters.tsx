@@ -1,4 +1,16 @@
 import { Search, Filter } from 'lucide-react';
+import type { TransactionCategory } from '../types/finance';
+
+const CATEGORIES: TransactionCategory[] = [
+  'Alimentação',
+  'Transporte',
+  'Moradia',
+  'Saúde',
+  'Educação',
+  'Lazer',
+  'Trabalho',
+  'Outros',
+];
 
 interface FinanceFiltersProps {
   searchTerm: string;
@@ -9,7 +21,6 @@ interface FinanceFiltersProps {
   setSelectedMonth: (value: string) => void;
   selectedYear: string;
   setSelectedYear: (value: string) => void;
-  categories: string[];
 }
 
 export function FinanceFilters({
@@ -21,7 +32,6 @@ export function FinanceFilters({
   setSelectedMonth,
   selectedYear,
   setSelectedYear,
-  categories,
 }: FinanceFiltersProps) {
   const months = [
     { value: '', label: 'Todos os meses' },
@@ -67,7 +77,7 @@ export function FinanceFilters({
           className="px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-slate-100 focus:outline-none focus:border-emerald-500 cursor-pointer"
         >
           <option value="">Todas as Categorias</option>
-          {categories.map((cat) => (
+          {CATEGORIES.map((cat) => (
             <option key={cat} value={cat}>
               {cat}
             </option>

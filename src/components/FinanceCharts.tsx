@@ -10,14 +10,7 @@ import {
   ResponsiveContainer,
   Legend
 } from 'recharts';
-
-interface Transaction {
-  id: number;
-  description: string;
-  amount: number;
-  type: 'income' | 'expense';
-  category: string;
-}
+import type { Transaction } from '../types/finance';
 
 interface FinanceChartsProps {
   transactions: Transaction[];

@@ -1,190 +1,99 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { Suspense, lazy, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { api } from '../services/api';
-import type { Transaction, TransactionCategory, TransactionType } from '../types/finance';
-import { LogOut, TrendingUp, TrendingDown, DollarSign, Plus, Trash2, Download, Pencil, X, AlertTriangle } from 'lucide-react';
-import { FinanceCharts } from '../components/FinanceCharts';
-import { FinanceFilters } from '../components/FinanceFilters';
+import { LogOut, TrendingUp, TrendingDown, DollarSign, Trash2, Download, Pencil, AlertTriangle } from 'lucide-react';
+import { TransactionForm } from '../components/TransactionForm';
+import { useTransactions } from '../hooks/useTransactions';
+import { getApiErrorMessage } from '../services/api';
+import type { Transaction, TransactionFilters, TransactionPayload } from '../types/finance';
 import toast, { Toaster } from 'react-hot-toast';
+
+const FinanceFilters = lazy(() =>
+  import('../components/FinanceFilters').then((m) => ({ default: m.FinanceFilters })),
+);
+const FinanceCharts = lazy(() =>
+  import('../components/FinanceCharts').then((m) => ({ default: m.FinanceCharts })),
+);
 
 export const Dashboard: React.FC = () => {
   const { logout } = useAuth();
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [loading, setLoading] = useState(true);
 
-  // Estados do formulário
-  const [description, setDescription] = useState('');
-  const [amount, setAmount] = useState('');
-  const [type, setType] = useState<TransactionType>('income');
-  const [category, setCategory] = useState<TransactionCategory>('Outros');
-
-  // Estados de Edição e Modal de Deleção
-  const [editingId, setEditingId] = useState<number | null>(null);
+  // Filtros aplicados no servidor (mesmos parâmetros para lista, resumo e exportação)
+  const [filters, setFilters] = useState<TransactionFilters>({
+    search: '',
+    category: '',
+    month: '',
+    year: '',
+  });
+  const [saving, setSaving] = useState(false);
+  const [editing, setEditing] = useState<Transaction | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
-  // Estados dos filtros
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('');
-  const [selectedMonth, setSelectedMonth] = useState('');
-  const [selectedYear, setSelectedYear] = useState('');
+  const {
+    transactions,
+    summary,
+    loading,
+    hasMore,
+    loadMore,
+    createTransaction,
+    updateTransaction,
+    deleteTransaction,
+    exportExcel,
+  } = useTransactions(filters);
 
-  const fetchData = async () => {
-    setLoading(true);
+  const handleFilterChange = (key: keyof TransactionFilters, value: string) => {
+    setFilters((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleSaveTransaction = async (payload: TransactionPayload) => {
+    setSaving(true);
     try {
-      const allTransactions: Transaction[] = [];
-      const pageSize = 500;
-      for (let skip = 0; ; skip += pageSize) {
-        const { data } = await api.get<Transaction[]>('/transactions/', {
-          params: { skip, limit: pageSize },
-        });
-        const normalizedData = data.map((transaction) => ({
-          ...transaction,
-          amount: Number(transaction.amount),
-        }));
-        allTransactions.push(...normalizedData);
-        if (data.length < pageSize) break;
-      }
-      setTransactions(allTransactions);
-    } catch (err) {
-      toast.error("Erro ao carregar os dados financeiros.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const categories = useMemo(() => {
-    return Array.from(new Set(transactions.map((t) => t.category)));
-  }, [transactions]);
-
-  const filteredTransactions = useMemo(() => {
-    return transactions.filter((t) => {
-      const matchesSearch = t.description.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesCategory = selectedCategory ? t.category === selectedCategory : true;
-
-      if (!t.date) return matchesSearch && matchesCategory;
-
-      const tDate = new Date(t.date);
-      const matchesMonth = selectedMonth ? tDate.getMonth() + 1 === Number(selectedMonth) : true;
-      const matchesYear = selectedYear ? tDate.getFullYear() === Number(selectedYear) : true;
-
-      return matchesSearch && matchesCategory && matchesMonth && matchesYear;
-    });
-  }, [transactions, searchTerm, selectedCategory, selectedMonth, selectedYear]);
-
-  const summary = useMemo(() => {
-    const total_income = filteredTransactions
-      .filter((t) => t.type === 'income')
-      .reduce((sum, t) => sum + t.amount, 0);
-    const total_expense = filteredTransactions
-      .filter((t) => t.type === 'expense')
-      .reduce((sum, t) => sum + t.amount, 0);
-    return { total_income, total_expense, balance: total_income - total_expense };
-  }, [filteredTransactions]);
-
-  const handleEditClick = (item: Transaction) => {
-    setEditingId(item.id);
-    setDescription(item.description);
-    setAmount(String(item.amount));
-    setType(item.type);
-    setCategory(item.category as TransactionCategory);
-  };
-
-  const handleCancelEdit = () => {
-    setEditingId(null);
-    setDescription('');
-    setAmount('');
-    setType('income');
-    setCategory('Outros');
-  };
-
-  const handleSaveTransaction = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!description || !amount) return;
-
-    const payload = {
-      description,
-      amount: parseFloat(amount),
-      type,
-      category
-    };
-
-    try {
-      if (editingId !== null) {
-        await api.put(`/transactions/${editingId}`, payload);
-        toast.success("Transação atualizada com sucesso!");
+      if (editing) {
+        await updateTransaction(editing.id, payload);
       } else {
-        await api.post('/transactions', payload);
-        toast.success("Transação adicionada!");
+        await createTransaction(payload);
       }
-      handleCancelEdit();
-      fetchData();
+      setEditing(null);
     } catch (err) {
-      toast.error(editingId !== null ? "Erro ao atualizar transação." : "Erro ao adicionar transação.");
-    }
-  };
-
-  const confirmDeleteTransaction = async () => {
-    if (deletingId === null) return;
-
-    try {
-      await api.delete(`/transactions/${deletingId}`);
-      toast.success("Transação removida.");
-      if (editingId === deletingId) handleCancelEdit();
-      fetchData();
-    } catch (err) {
-      toast.error("Erro ao remover transação.");
+      toast.error(getApiErrorMessage(err, editing ? 'Erro ao atualizar transação.' : 'Erro ao adicionar transação.'));
     } finally {
-      setDeletingId(null);
+      setSaving(false);
     }
   };
 
   const handleExportExcel = async () => {
     try {
-      const response = await api.get('/transactions/export/excel', {
-        responseType: 'blob',
-        params: {
-          month: selectedMonth || undefined,
-          year: selectedYear || undefined,
-          category: selectedCategory || undefined,
-          search: searchTerm || undefined,
-          timezone_name: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
-        },
-      });
-
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `relatorio_financeiro_${new Date().toISOString().slice(0, 10)}.xlsx`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-      toast.success("Relatório Excel baixado!");
+      await exportExcel();
     } catch (err) {
-      toast.error("Erro ao exportar relatório em Excel.");
+      toast.error(getApiErrorMessage(err, 'Erro ao exportar relatório em Excel.'));
+    }
+  };
+
+  const confirmDeleteTransaction = async () => {
+    if (deletingId === null) return;
+    try {
+      await deleteTransaction(deletingId);
+      if (editing?.id === deletingId) setEditing(null);
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, 'Erro ao remover transação.'));
+    } finally {
+      setDeletingId(null);
     }
   };
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 p-4 md:p-8">
-      {/* Componente de Toasts */}
-      <Toaster 
-        position="top-right" 
+      <Toaster
+        position="top-right"
         toastOptions={{
           style: {
             background: '#1e293b',
             color: '#f8fafc',
             border: '1px solid #334155',
           },
-        }} 
+        }}
       />
 
       <div className="max-w-6xl mx-auto space-y-6">
-        
         {/* Topbar */}
         <div className="flex justify-between items-center bg-slate-800 p-6 rounded-2xl border border-slate-700">
           <div>
@@ -199,7 +108,7 @@ export const Dashboard: React.FC = () => {
           </button>
         </div>
 
-        {/* Resumo */}
+        {/* Resumo (autoritativo, calculado no servidor com os mesmos filtros) */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700">
             <div className="flex justify-between items-center mb-2">
@@ -234,115 +143,34 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Barra de Filtros */}
-        <FinanceFilters
-          searchTerm={searchTerm}
-          setSearchTerm={setSearchTerm}
-          selectedCategory={selectedCategory}
-          setSelectedCategory={setSelectedCategory}
-          selectedMonth={selectedMonth}
-          setSelectedMonth={setSelectedMonth}
-          selectedYear={selectedYear}
-          setSelectedYear={setSelectedYear}
-          categories={categories}
+        {/* Barra de Filtros (aplicados no servidor) */}
+        <Suspense fallback={null}>
+          <FinanceFilters
+          searchTerm={filters.search ?? ''}
+          setSearchTerm={(v) => handleFilterChange('search', v)}
+          selectedCategory={filters.category ?? ''}
+          setSelectedCategory={(v) => handleFilterChange('category', v)}
+          selectedMonth={filters.month ?? ''}
+          setSelectedMonth={(v) => handleFilterChange('month', v)}
+          selectedYear={filters.year ?? ''}
+          setSelectedYear={(v) => handleFilterChange('year', v)}
         />
+        </Suspense>
 
-        {/* Gráficos */}
-        <FinanceCharts transactions={filteredTransactions} />
+        {/* Gráficos (carregados sob demanda) */}
+        <Suspense fallback={<div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 text-slate-400 text-sm text-center">Carregando gráficos...</div>}>
+          <FinanceCharts transactions={transactions} />
+        </Suspense>
 
         {/* Conteúdo Principal (Formulário + Tabela) */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          
-          {/* Formulário */}
-          <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 h-fit">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-white">
-                {editingId !== null ? 'Editar Transação' : 'Nova Transação'}
-              </h3>
-              {editingId !== null && (
-                <button
-                  onClick={handleCancelEdit}
-                  className="text-slate-400 hover:text-white text-xs flex items-center gap-1 bg-slate-700 px-2 py-1 rounded transition"
-                >
-                  <X className="w-3.5 h-3.5" /> Cancelar
-                </button>
-              )}
-            </div>
-
-            <form onSubmit={handleSaveTransaction} className="space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1">Descrição</label>
-                <input
-                  type="text"
-                  required
-                  maxLength={240}
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Ex: Salário, Mercado"
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-white text-sm focus:outline-none focus:border-emerald-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1">Valor (R$)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0.01"
-                  max="9999999999.99"
-                  required
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  placeholder="0.00"
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-white text-sm focus:outline-none focus:border-emerald-500"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-xs font-medium text-slate-400 mb-1">Tipo</label>
-                  <select
-                    value={type}
-                    onChange={(e) => setType(e.target.value as TransactionType)}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-white text-sm focus:outline-none focus:border-emerald-500"
-                  >
-                    <option value="income">Entrada</option>
-                    <option value="expense">Saída</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-slate-400 mb-1">Categoria</label>
-                  <select
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value as TransactionCategory)}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-white text-sm focus:outline-none focus:border-emerald-500"
-                  >
-                    <option value="Alimentação">Alimentação</option>
-                    <option value="Transporte">Transporte</option>
-                    <option value="Moradia">Moradia</option>
-                    <option value="Saúde">Saúde</option>
-                    <option value="Educação">Educação</option>
-                    <option value="Lazer">Lazer</option>
-                    <option value="Trabalho">Trabalho</option>
-                    <option value="Outros">Outros</option>
-                  </select>
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                className={`w-full font-semibold py-2.5 rounded-lg flex items-center justify-center gap-2 transition cursor-pointer ${
-                  editingId !== null
-                    ? 'bg-blue-500 hover:bg-blue-600 text-white'
-                    : 'bg-emerald-500 hover:bg-emerald-600 text-slate-950'
-                }`}
-              >
-                {editingId !== null ? <Pencil className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-                {editingId !== null ? 'Salvar Alterações' : 'Adicionar'}
-              </button>
-            </form>
-          </div>
+          <TransactionForm
+            key={editing?.id ?? 'new'}
+            editing={editing}
+            saving={saving}
+            onSave={handleSaveTransaction}
+            onCancelEdit={() => setEditing(null)}
+          />
 
           {/* Tabela de Transações */}
           <div className="lg:col-span-2 bg-slate-800 p-6 rounded-2xl border border-slate-700">
@@ -358,7 +186,7 @@ export const Dashboard: React.FC = () => {
 
             {loading ? (
               <p className="text-slate-400 text-sm text-center py-8">Carregando...</p>
-            ) : filteredTransactions.length === 0 ? (
+            ) : transactions.length === 0 ? (
               <p className="text-slate-400 text-sm text-center py-8">Nenhuma transação encontrada.</p>
             ) : (
               <div className="overflow-x-auto">
@@ -373,7 +201,7 @@ export const Dashboard: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-700/50">
-                    {filteredTransactions.map((item) => (
+                    {transactions.map((item) => (
                       <tr key={item.id} className="hover:bg-slate-700/30">
                         <td className="py-3 font-medium text-white">{item.description}</td>
                         <td className="py-3">
@@ -390,9 +218,10 @@ export const Dashboard: React.FC = () => {
                         <td className="py-3 text-right">
                           <div className="flex items-center justify-end gap-2">
                             <button
-                              onClick={() => handleEditClick(item)}
+                              onClick={() => setEditing(item)}
                               className="text-slate-400 hover:text-blue-400 p-1 transition cursor-pointer"
                               title="Editar"
+                              aria-label={`Editar ${item.description}`}
                             >
                               <Pencil className="w-4 h-4" />
                             </button>
@@ -400,6 +229,7 @@ export const Dashboard: React.FC = () => {
                               onClick={() => setDeletingId(item.id)}
                               className="text-slate-500 hover:text-red-400 p-1 transition cursor-pointer"
                               title="Excluir"
+                              aria-label={`Excluir ${item.description}`}
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
@@ -409,23 +239,36 @@ export const Dashboard: React.FC = () => {
                     ))}
                   </tbody>
                 </table>
+                {hasMore && (
+                  <div className="text-center pt-4">
+                    <button
+                      onClick={() => void loadMore()}
+                      className="text-slate-400 hover:text-white text-sm underline underline-offset-4 transition cursor-pointer"
+                    >
+                      Carregar mais transações
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
-
         </div>
-
       </div>
 
       {/* Modal de Confirmação de Deleção */}
       {deletingId !== null && (
-        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div
+          className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-dialog-title"
+        >
           <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6 max-w-sm w-full space-y-4 shadow-xl">
             <div className="flex items-center gap-3 text-red-400">
               <div className="p-2 bg-red-500/10 rounded-xl">
                 <AlertTriangle className="w-6 h-6" />
               </div>
-              <h4 className="text-lg font-bold text-white">Excluir Transação?</h4>
+              <h4 id="delete-dialog-title" className="text-lg font-bold text-white">Excluir Transação?</h4>
             </div>
             <p className="text-slate-400 text-sm">
               Esta ação é permanente e não poderá ser desfeita no seu histórico financeiro.
@@ -447,8 +290,6 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
       )}
-
     </div>
   );
 };
-
