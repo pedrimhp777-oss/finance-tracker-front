@@ -25,6 +25,21 @@ interface TransactionFormProps {
   onCancelEdit: () => void;
 }
 
+/** Converte a data ISO da API para yyyy-mm-dd no fuso local do usuário. */
+const toLocalDateInput = (isoDate: string): string => {
+  const d = new Date(isoDate);
+  if (Number.isNaN(d.getTime())) return '';
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+};
+
+/** Converte yyyy-mm-dd para ISO UTC usando meio-dia local (evita a
+ * virada de fuso/DST e preserva o dia escolhido pelo usuário). */
+const localDateInputToIso = (value: string): string => {
+  const [year, month, day] = value.split('-').map(Number);
+  return new Date(year, month - 1, day, 12, 0, 0).toISOString();
+};
+
 export const TransactionForm: React.FC<TransactionFormProps> = ({
   editing,
   saving,
@@ -37,6 +52,8 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
   const [amount, setAmount] = useState(editing ? String(editing.amount) : '');
   const [type, setType] = useState<TransactionType>(editing?.type ?? 'income');
   const [category, setCategory] = useState<TransactionCategory>(editing?.category ?? 'Outros');
+  // Data opcional: yyyy-mm-dd (input type=date). Vazia = usa a data de hoje.
+  const [dateInput, setDateInput] = useState(() => editing ? toLocalDateInput(editing.date) : '');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,6 +65,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
       amount: parsedAmount,
       type,
       category,
+      ...(dateInput ? { date: localDateInputToIso(dateInput) } : {}),
     });
   };
 
@@ -140,6 +158,23 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
               ))}
             </select>
           </div>
+        </div>
+
+        <div>
+          <label htmlFor="tx-date" className={labelClass}>
+            Data <span className="text-slate-500">(opcional)</span>
+          </label>
+          <input
+            id="tx-date"
+            type="date"
+            max={toLocalDateInput(new Date().toISOString())}
+            value={dateInput}
+            onChange={(e) => setDateInput(e.target.value)}
+            className={`${inputClass} cursor-pointer`}
+          />
+          <p className="text-xs text-slate-500 mt-1">
+            Deixe vazio para usar a data de hoje.
+          </p>
         </div>
 
         <button

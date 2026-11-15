@@ -51,4 +51,8 @@ export interface TransactionPayload {
   amount: number;
   type: TransactionType;
   category: TransactionCategory;
+  /** Data da transação em ISO (UTC). Opcional: quando ausente, o backend
+   * usa a data/hora atual. Enviado como meio-dia local convertido para UTC
+   * para preservar o dia escolhido em qualquer fuso. */
+  date?: string;
 }
