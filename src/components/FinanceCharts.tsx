@@ -10,38 +10,27 @@ import {
   ResponsiveContainer,
   Legend
 } from 'recharts';
-import type { Transaction } from '../types/finance';
+import type { Summary } from '../types/finance';
+import type { CategoryTotal } from '../hooks/useTransactions';
 
 interface FinanceChartsProps {
-  transactions: Transaction[];
+  /** Agregação server-side de despesas por categoria (todas as filtradas). */
+  expensesByCategory: CategoryTotal[];
+  /** Resumo autoritativo do servidor (usado no gráfico de barras). */
+  summary: Summary;
 }
 
 const COLORS = ['#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#EC4899'];
 
-export function FinanceCharts({ transactions }: FinanceChartsProps) {
-  const expensesByCategory = transactions
-    .filter((t) => t.type === 'expense')
-    .reduce((acc, t) => {
-      acc[t.category] = (acc[t.category] || 0) + t.amount;
-      return acc;
-    }, {} as Record<string, number>);
-
-  const pieData = Object.entries(expensesByCategory).map(([name, value]) => ({
-    name,
-    value,
+export function FinanceCharts({ expensesByCategory, summary }: FinanceChartsProps) {
+  const pieData = expensesByCategory.map((row) => ({
+    name: row.category,
+    value: row.total,
   }));
 
-  const totalIncome = transactions
-    .filter((t) => t.type === 'income')
-    .reduce((acc, t) => acc + t.amount, 0);
-
-  const totalExpense = transactions
-    .filter((t) => t.type === 'expense')
-    .reduce((acc, t) => acc + t.amount, 0);
-
   const barData = [
-    { name: 'Entradas', valor: totalIncome, fill: '#10B981' },
-    { name: 'Saídas', valor: totalExpense, fill: '#EF4444' },
+    { name: 'Entradas', valor: summary.total_income, fill: '#10B981' },
+    { name: 'Saídas', valor: summary.total_expense, fill: '#EF4444' },
   ];
 
   return (

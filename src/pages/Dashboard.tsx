@@ -31,6 +31,7 @@ export const Dashboard: React.FC = () => {
   const {
     transactions,
     summary,
+    expensesByCategory,
     loading,
     hasMore,
     loadMore,
@@ -157,9 +158,12 @@ export const Dashboard: React.FC = () => {
         />
         </Suspense>
 
-        {/* Gráficos (carregados sob demanda) */}
+        {/* Gráficos (carregados sob demanda; agregação server-side) */}
         <Suspense fallback={<div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 text-slate-400 text-sm text-center">Carregando gráficos...</div>}>
-          <FinanceCharts transactions={transactions} />
+          <FinanceCharts
+            expensesByCategory={expensesByCategory}
+            summary={summary}
+          />
         </Suspense>
 
         {/* Conteúdo Principal (Formulário + Tabela) */}

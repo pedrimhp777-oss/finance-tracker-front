@@ -9,10 +9,16 @@ import type {
 } from '../types/finance';
 
 const PAGE_SIZE = 100;
+const SEARCH_DEBOUNCE_MS = 350;
 
 /** Fuso do usuário, usado em todas as consultas com filtro de período. */
 export const userTimezone =
   Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+
+export interface CategoryTotal {
+  category: string;
+  total: number;
+}
 
 function filterParams(filters: TransactionFilters) {
   return {
@@ -26,7 +32,8 @@ function filterParams(filters: TransactionFilters) {
 
 /**
  * Centraliza o acesso à API de transações: listagem com filtros no servidor,
- * resumo financeiro autoritativo do backend e operações CRUD.
+ * resumo financeiro e agregação por categoria autoritativos do backend e
+ * operações CRUD. A busca tem debounce para evitar requisições a cada tecla.
  */
 export function useTransactions(filters: TransactionFilters) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -35,12 +42,17 @@ export function useTransactions(filters: TransactionFilters) {
     total_expense: 0,
     balance: 0,
   });
+  const [expensesByCategory, setExpensesByCategory] = useState<CategoryTotal[]>([]);
   const [loading, setLoading] = useState(true);
   const [hasMore, setHasMore] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
   const fetchPage = useCallback(
-    async (skip: number, currentFilters: TransactionFilters) => {
+    async (
+      skip: number,
+      currentFilters: TransactionFilters,
+      mode: 'replace' | 'append' = 'replace',
+    ) => {
       abortRef.current?.abort();
       const controller = new AbortController();
       abortRef.current = controller;
@@ -52,7 +64,7 @@ export function useTransactions(filters: TransactionFilters) {
           skip,
           limit: PAGE_SIZE,
         };
-        const [listRes, summaryRes] = await Promise.all([
+        const [listRes, summaryRes, categoriesRes] = await Promise.all([
           api.get<Transaction[]>('/transactions/', {
             params,
             signal: controller.signal,
@@ -61,14 +73,31 @@ export function useTransactions(filters: TransactionFilters) {
             params: filterParams(currentFilters),
             signal: controller.signal,
           }),
+          api.get<CategoryTotal[]>('/transactions/categories', {
+            params: filterParams(currentFilters),
+            signal: controller.signal,
+          }),
         ]);
-        setTransactions(listRes.data.map((t) => ({ ...t, amount: Number(t.amount) })));
+        const page = listRes.data.map((t) => ({ ...t, amount: Number(t.amount) }));
+        setTransactions((prev) => {
+          if (mode === 'replace') return page;
+          // Append com deduplicação por id (evita registros repetidos se o
+          // servidor receber a mesma página duas vezes).
+          const seen = new Set(prev.map((t) => t.id));
+          return [...prev, ...page.filter((t) => !seen.has(t.id))];
+        });
         setSummary({
           total_income: Number(summaryRes.data.total_income),
           total_expense: Number(summaryRes.data.total_expense),
           balance: Number(summaryRes.data.balance),
         });
-        setHasMore(listRes.data.length === PAGE_SIZE);
+        setExpensesByCategory(
+          categoriesRes.data.map((row) => ({
+            category: row.category,
+            total: Number(row.total),
+          })),
+        );
+        setHasMore(page.length === PAGE_SIZE);
       } catch (err) {
         if (!controller.signal.aborted) {
           toast.error(getApiErrorMessage(err, 'Erro ao carregar os dados financeiros.'));
@@ -80,13 +109,17 @@ export function useTransactions(filters: TransactionFilters) {
     [],
   );
 
+  // Debounce: evita disparar 3 requisições a cada tecla na busca.
   useEffect(() => {
-    void fetchPage(0, filters);
+    const timer = setTimeout(() => {
+      void fetchPage(0, filters);
+    }, SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
     // fetchPage é estável; filters é a fonte de verdade dos filtros.
   }, [fetchPage, filters]);
 
   const loadMore = useCallback(() => {
-    return fetchPage(transactions.length, filters);
+    return fetchPage(transactions.length, filters, 'append');
   }, [fetchPage, transactions.length, filters]);
 
   const createTransaction = useCallback(async (payload: TransactionPayload) => {
@@ -129,6 +162,7 @@ export function useTransactions(filters: TransactionFilters) {
   return {
     transactions,
     summary,
+    expensesByCategory,
     loading,
     hasMore,
     loadMore,
