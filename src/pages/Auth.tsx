@@ -67,7 +67,9 @@ export const Auth: React.FC = () => {
                 <UserIcon className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
                 <input
                   id="auth-name"
+                  name="name"
                   type="text"
+                  autoComplete="name"
                   required
                   maxLength={100}
                   value={name}
@@ -84,7 +86,9 @@ export const Auth: React.FC = () => {
               <Mail className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
               <input
                 id="auth-email"
+                name="email"
                 type="email"
+                autoComplete="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -99,7 +103,9 @@ export const Auth: React.FC = () => {
               <Lock className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
               <input
                 id="auth-password"
+                name="password"
                 type="password"
+                autoComplete={isLogin ? 'current-password' : 'new-password'}
                 required
                 minLength={8}
                 value={password}
