@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Pencil, Plus, X } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { Calendar, Pencil, Plus, X } from 'lucide-react';
 import type {
   Transaction,
   TransactionCategory,
@@ -25,19 +25,56 @@ interface TransactionFormProps {
   onCancelEdit: () => void;
 }
 
-/** Converte a data ISO da API para yyyy-mm-dd no fuso local do usuário. */
+/** Converte a data ISO da API para dd/mm/aaaa no fuso local do usuário. */
 const toLocalDateInput = (isoDate: string): string => {
   const d = new Date(isoDate);
   if (Number.isNaN(d.getTime())) return '';
   const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
 };
 
-/** Converte yyyy-mm-dd para ISO UTC usando meio-dia local (evita a
- * virada de fuso/DST e preserva o dia escolhido pelo usuário). */
-const localDateInputToIso = (value: string): string => {
-  const [year, month, day] = value.split('-').map(Number);
-  return new Date(year, month - 1, day, 12, 0, 0).toISOString();
+/** Máscara progressiva de digitação: dd/mm/aaaa (somente dígitos). */
+const maskDateInput = (raw: string): string => {
+  const digits = raw.replace(/\D/g, '').slice(0, 8);
+  const parts = [digits.slice(0, 2)];
+  if (digits.length > 2) parts.push(digits.slice(2, 4));
+  if (digits.length > 4) parts.push(digits.slice(4, 8));
+  return parts.filter(Boolean).join('/');
+};
+
+interface ParsedDateInput {
+  iso: string;
+  error?: string;
+}
+
+/** Valida dd/mm/aaaa completo e converte para ISO UTC (meio-dia local,
+ * preservando o dia escolhido em qualquer fuso). Recusa datas futuras. */
+const parseDateInput = (value: string): ParsedDateInput | null => {
+  const digits = value.replace(/\D/g, '');
+  if (digits.length === 0) return { iso: '' }; // campo vazio: usa hoje
+  if (digits.length !== 8) {
+    return { iso: '', error: 'Complete a data no formato DD/MM/AAAA.' };
+  }
+  const day = Number(digits.slice(0, 2));
+  const month = Number(digits.slice(2, 4));
+  const year = Number(digits.slice(4, 8));
+  const parsed = new Date(year, month - 1, day, 12, 0, 0);
+  const validCalendarDate =
+    year >= 1900 &&
+    month >= 1 && month <= 12 &&
+    day >= 1 && day <= 31 &&
+    parsed.getFullYear() === year &&
+    parsed.getMonth() === month - 1 &&
+    parsed.getDate() === day;
+  if (!validCalendarDate) {
+    return { iso: '', error: 'Informe uma data válida.' };
+  }
+  const today = new Date();
+  today.setHours(23, 59, 59, 999);
+  if (parsed > today) {
+    return { iso: '', error: 'A data não pode estar no futuro.' };
+  }
+  return { iso: parsed.toISOString() };
 };
 
 export const TransactionForm: React.FC<TransactionFormProps> = ({
@@ -52,20 +89,29 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
   const [amount, setAmount] = useState(editing ? String(editing.amount) : '');
   const [type, setType] = useState<TransactionType>(editing?.type ?? 'income');
   const [category, setCategory] = useState<TransactionCategory>(editing?.category ?? 'Outros');
-  // Data opcional: yyyy-mm-dd (input type=date). Vazia = usa a data de hoje.
+  // Data opcional em dd/mm/aaaa (digitação). Vazia = usa a data de hoje.
   const [dateInput, setDateInput] = useState(() => editing ? toLocalDateInput(editing.date) : '');
+  const [dateError, setDateError] = useState('');
+  const nativeDateRef = useRef<HTMLInputElement>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const parsedAmount = Number.parseFloat(amount);
     if (!description.trim() || Number.isNaN(parsedAmount) || parsedAmount <= 0) return;
 
+    const parsedDate = parseDateInput(dateInput);
+    if (parsedDate?.error) {
+      setDateError(parsedDate.error);
+      return;
+    }
+    setDateError('');
+
     await onSave({
       description: description.trim(),
       amount: parsedAmount,
       type,
       category,
-      ...(dateInput ? { date: localDateInputToIso(dateInput) } : {}),
+      ...(parsedDate?.iso ? { date: parsedDate.iso } : {}),
     });
   };
 
@@ -164,17 +210,63 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
           <label htmlFor="tx-date" className={labelClass}>
             Data <span className="text-slate-500">(opcional)</span>
           </label>
-          <input
-            id="tx-date"
-            type="date"
-            max={toLocalDateInput(new Date().toISOString())}
-            value={dateInput}
-            onChange={(e) => setDateInput(e.target.value)}
-            className={`${inputClass} cursor-pointer`}
-          />
-          <p className="text-xs text-slate-500 mt-1">
-            Deixe vazio para usar a data de hoje.
-          </p>
+          <div className="relative">
+            <input
+              id="tx-date"
+              type="text"
+              inputMode="numeric"
+              autoComplete="off"
+              placeholder="DD/MM/AAAA"
+              maxLength={10}
+              value={dateInput}
+              onChange={(e) => {
+                setDateInput(maskDateInput(e.target.value));
+                if (dateError) setDateError('');
+              }}
+              className={`${inputClass} pr-10 placeholder:text-slate-500`}
+              aria-invalid={dateError ? true : undefined}
+            />
+            {/* Calendário nativo acessível pelo ícone: preenche a máscara. */}
+            <input
+              ref={nativeDateRef}
+              id="tx-date-native"
+              type="date"
+              tabIndex={-1}
+              aria-hidden="true"
+              value={''}
+              onChange={(e) => {
+                if (!e.target.value) return;
+                const [y, m, d] = e.target.value.split('-');
+                setDateInput(`${d}/${m}/${y}`);
+                if (dateError) setDateError('');
+              }}
+              className="sr-only"
+            />
+            <button
+              type="button"
+              aria-label="Abrir calendário"
+              onClick={() => {
+                const native = nativeDateRef.current;
+                if (!native) return;
+                try {
+                  native.showPicker();
+                } catch {
+                  native.focus();
+                  native.click();
+                }
+              }}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white hover:text-emerald-400 transition cursor-pointer"
+            >
+              <Calendar className="w-4 h-4" />
+            </button>
+          </div>
+          {dateError ? (
+            <p className="text-xs text-red-400 mt-1">{dateError}</p>
+          ) : (
+            <p className="text-xs text-slate-500 mt-1">
+              Deixe vazio para usar a data de hoje.
+            </p>
+          )}
         </div>
 
         <button
