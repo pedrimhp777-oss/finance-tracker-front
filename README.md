@@ -8,6 +8,8 @@
 **🔗 Aplicação:** https://finance-tracker-front-pearl.vercel.app
 **⚙️ API:** [finance-tracker](https://github.com/pedrimhp777-oss/finance-tracker)
 
+![Dashboard do Finance Tracker: cartões de entradas, saídas e saldo total, barra de filtros por busca, categoria, mês, ano e dia, e os gráficos de despesas por categoria e de entradas vs saídas](docs/screenshot.png)
+
 ---
 
 ## Sobre
