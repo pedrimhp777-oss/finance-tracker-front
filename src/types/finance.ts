@@ -41,6 +41,8 @@ export interface AuthResponse {
 export interface TransactionFilters {
   month?: string;
   year?: string;
+  /** Dia (1-31). Só é enviado junto com mês e ano. */
+  day?: string;
   category?: string;
   search?: string;
 }

@@ -257,7 +257,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
               }}
               className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white hover:text-emerald-400 transition cursor-pointer"
             >
-              <Calendar className="w-4 h-4" />
+              <Calendar className="w-5 h-5" strokeWidth={2.5} />
             </button>
           </div>
           {dateError ? (

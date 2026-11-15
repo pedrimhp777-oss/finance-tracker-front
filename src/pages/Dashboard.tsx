@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useState } from 'react';
+import React, { Suspense, lazy, useMemo, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { LogOut, TrendingUp, TrendingDown, DollarSign, Trash2, Download, Pencil, AlertTriangle } from 'lucide-react';
 import { TransactionForm } from '../components/TransactionForm';
@@ -23,6 +23,7 @@ export const Dashboard: React.FC = () => {
     category: '',
     month: '',
     year: '',
+    day: '',
   });
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState<Transaction | null>(null);
@@ -41,8 +42,33 @@ export const Dashboard: React.FC = () => {
     exportExcel,
   } = useTransactions(filters);
 
+  // Ano mais antigo do histórico carregado: alimenta a lista de anos do
+  // filtro (derivada dos dados reais, sem lista arbitrária).
+  const minYear = useMemo(() => {
+    if (transactions.length === 0) return new Date().getFullYear();
+    return transactions.reduce((min, t) => {
+      const y = new Date(t.date).getFullYear();
+      return Number.isFinite(y) && y < min ? y : min;
+    }, new Date().getFullYear());
+  }, [transactions]);
+
   const handleFilterChange = (key: keyof TransactionFilters, value: string) => {
-    setFilters((prev) => ({ ...prev, [key]: value }));
+    setFilters((prev) => {
+      const next = { ...prev, [key]: value };
+      // O dia só faz sentido com mês e ano; se o período mudar e o dia
+      // escolhido não existir nele, limpa o dia.
+      if (key === 'month' || key === 'year') {
+        const m = Number(next.month);
+        const y = Number(next.year);
+        if (next.month && next.year && next.day) {
+          const maxDay = new Date(y, m, 0).getDate();
+          if (Number(next.day) > maxDay) next.day = '';
+        } else if (!next.month || !next.year) {
+          next.day = '';
+        }
+      }
+      return next;
+    });
   };
 
   const handleSaveTransaction = async (payload: TransactionPayload) => {
@@ -155,6 +181,9 @@ export const Dashboard: React.FC = () => {
           setSelectedMonth={(v) => handleFilterChange('month', v)}
           selectedYear={filters.year ?? ''}
           setSelectedYear={(v) => handleFilterChange('year', v)}
+          selectedDay={filters.day ?? ''}
+          setSelectedDay={(v) => handleFilterChange('day', v)}
+          minYear={minYear}
         />
         </Suspense>
 
