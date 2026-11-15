@@ -24,6 +24,7 @@ function filterParams(filters: TransactionFilters) {
   return {
     month: filters.month || undefined,
     year: filters.year || undefined,
+    day: filters.day || undefined,
     category: filters.category || undefined,
     search: filters.search || undefined,
     timezone_name: userTimezone,

@@ -21,6 +21,21 @@ interface FinanceFiltersProps {
   setSelectedMonth: (value: string) => void;
   selectedYear: string;
   setSelectedYear: (value: string) => void;
+  selectedDay: string;
+  setSelectedDay: (value: string) => void;
+  /** Ano mais antigo presente no histórico do usuário (deriva a lista). */
+  minYear: number;
+}
+
+/** Dias do mês selecionado (29..31 quando mês/ano incompletos). */
+export function daysInSelectedMonth(month: string, year: string): number {
+  const m = Number(month);
+  const y = Number(year);
+  if (m >= 1 && m <= 12 && y >= 1900) {
+    // Dia 0 do mês seguinte = último dia do mês escolhido.
+    return new Date(y, m, 0).getDate();
+  }
+  return 31;
 }
 
 export function FinanceFilters({
@@ -32,6 +47,9 @@ export function FinanceFilters({
   setSelectedMonth,
   selectedYear,
   setSelectedYear,
+  selectedDay,
+  setSelectedDay,
+  minYear,
 }: FinanceFiltersProps) {
   const months = [
     { value: '', label: 'Todos os meses' },
@@ -50,7 +68,18 @@ export function FinanceFilters({
   ];
 
   const currentYear = new Date().getFullYear();
-  const years = ['', String(currentYear - 1), String(currentYear), String(currentYear + 1)];
+  // Lista de anos derivada do histórico do usuário (mais recente primeiro),
+  // sempre incluindo o próximo ano para lançamentos antecipados.
+  const lastYear = Math.max(currentYear + 1, minYear);
+  const years: string[] = [];
+  for (let y = lastYear; y >= Math.min(minYear, currentYear); y--) {
+    years.push(String(y));
+  }
+
+  const dayEnabled = selectedMonth !== '' && selectedYear !== '';
+  const maxDay = daysInSelectedMonth(selectedMonth, selectedYear);
+  const selectClass =
+    'px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-slate-100 focus:outline-none focus:border-emerald-500 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed';
 
   return (
     <div className="bg-slate-800 p-4 rounded-2xl border border-slate-700 flex flex-col md:flex-row gap-4 items-center justify-between">
@@ -69,12 +98,13 @@ export function FinanceFilters({
       {/* Selects de Filtros */}
       <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
         <Filter className="text-slate-400 w-4 h-4 hidden md:block" />
-        
+
         {/* Categoria */}
         <select
           value={selectedCategory}
           onChange={(e) => setSelectedCategory(e.target.value)}
-          className="px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-slate-100 focus:outline-none focus:border-emerald-500 cursor-pointer"
+          aria-label="Filtrar por categoria"
+          className={selectClass}
         >
           <option value="">Todas as Categorias</option>
           {CATEGORIES.map((cat) => (
@@ -88,7 +118,8 @@ export function FinanceFilters({
         <select
           value={selectedMonth}
           onChange={(e) => setSelectedMonth(e.target.value)}
-          className="px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-slate-100 focus:outline-none focus:border-emerald-500 cursor-pointer"
+          aria-label="Filtrar por mês"
+          className={selectClass}
         >
           {months.map((m) => (
             <option key={m.value} value={m.value}>
@@ -97,16 +128,38 @@ export function FinanceFilters({
           ))}
         </select>
 
-        {/* Ano */}
+        {/* Ano (histórico completo do usuário) */}
         <select
           value={selectedYear}
           onChange={(e) => setSelectedYear(e.target.value)}
-          className="px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-slate-100 focus:outline-none focus:border-emerald-500 cursor-pointer"
+          aria-label="Filtrar por ano"
+          className={selectClass}
         >
           <option value="">Todos os Anos</option>
-          {years.filter(Boolean).map((y) => (
+          {years.map((y) => (
             <option key={y} value={y}>
               {y}
+            </option>
+          ))}
+        </select>
+
+        {/* Dia (habilitado apenas com mês e ano escolhidos) */}
+        <select
+          value={selectedDay}
+          onChange={(e) => setSelectedDay(e.target.value)}
+          disabled={!dayEnabled}
+          aria-label="Filtrar por dia"
+          title={
+            dayEnabled
+              ? undefined
+              : 'Escolha o mês e o ano para filtrar por dia'
+          }
+          className={selectClass}
+        >
+          <option value="">Todos os dias</option>
+          {Array.from({ length: maxDay }, (_, i) => i + 1).map((d) => (
+            <option key={d} value={String(d)}>
+              {String(d).padStart(2, '0')}
             </option>
           ))}
         </select>

@@ -57,13 +57,15 @@ describe('TransactionForm', () => {
     });
   });
 
-  it('envia date em ISO quando o usuário escolhe uma data', async () => {
+  it('envia date em ISO quando o usuário digita a data', async () => {
     const user = userEvent.setup();
     render(<TransactionForm editing={null} saving={false} onSave={onSave} onCancelEdit={onCancelEdit} />);
 
     await user.type(screen.getByLabelText(/descrição/i), 'Salário de março');
     await user.type(screen.getByLabelText(/valor/i), '3000');
-    await user.type(screen.getByLabelText(/data/i), '2026-03-15');
+    // Digita só números: a máscara completa com as barras.
+    await user.type(screen.getByLabelText(/data/i), '15032026');
+    expect(screen.getByLabelText(/data/i)).toHaveValue('15/03/2026');
     await user.click(screen.getByRole('button', { name: /adicionar/i }));
 
     await waitFor(() => {
@@ -76,13 +78,31 @@ describe('TransactionForm', () => {
     });
   });
 
-  it('no modo edição preenche a data existente no fuso local', () => {
+  it('bloqueia envio com data inválida e mostra o erro', async () => {
+    const user = userEvent.setup();
+    render(<TransactionForm editing={null} saving={false} onSave={onSave} onCancelEdit={onCancelEdit} />);
+
+    await user.type(screen.getByLabelText(/descrição/i), 'X');
+    await user.type(screen.getByLabelText(/valor/i), '10');
+    await user.type(screen.getByLabelText(/data/i), '31022026'); // 31/02 não existe
+    await user.click(screen.getByRole('button', { name: /adicionar/i }));
+
+    expect(onSave).not.toHaveBeenCalled();
+    expect(screen.getByText(/informe uma data válida/i)).toBeInTheDocument();
+  });
+
+  it('tem o botão de calendário acessível', () => {
+    render(<TransactionForm editing={null} saving={false} onSave={onSave} onCancelEdit={onCancelEdit} />);
+    expect(screen.getByRole('button', { name: /abrir calendário/i })).toBeInTheDocument();
+  });
+
+  it('no modo edição preenche a data existente no formato dd/mm/aaaa', () => {
     render(
       <TransactionForm key="edit-1" editing={tx} saving={false} onSave={onSave} onCancelEdit={onCancelEdit} />,
     );
     const d = new Date(tx.date);
     const pad = (n: number) => String(n).padStart(2, '0');
-    const expected = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    const expected = `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
     expect(screen.getByLabelText(/data/i)).toHaveValue(expected);
   });
 
