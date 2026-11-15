@@ -2,10 +2,12 @@ import React, { useState } from 'react';
 import { toast, Toaster } from 'react-hot-toast';
 import { api, getApiErrorMessage } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { ForgotPasswordForm } from './PasswordRecovery';
 import { Wallet, Lock, Mail, User as UserIcon } from 'lucide-react';
 
 export const Auth: React.FC = () => {
   const [isLogin, setIsLogin] = useState(true);
+  const [showForgot, setShowForgot] = useState(false);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -57,8 +59,16 @@ export const Auth: React.FC = () => {
           </div>
         </div>
         <h2 className="text-2xl font-bold text-center text-white mb-6">
-          {isLogin ? 'Entrar no Finance Tracker' : 'Criar Conta'}
+          {showForgot
+            ? 'Recuperar senha'
+            : isLogin
+              ? 'Entrar no Finance Tracker'
+              : 'Criar Conta'}
         </h2>
+        {showForgot ? (
+          <ForgotPasswordForm onBack={() => setShowForgot(false)} />
+        ) : (
+        <>
         <form onSubmit={handleSubmit} className="space-y-4">
           {!isLogin && (
             <div>
@@ -123,12 +133,23 @@ export const Auth: React.FC = () => {
             {submitting ? 'Aguarde...' : isLogin ? 'Entrar' : 'Cadastrar'}
           </button>
         </form>
+        {isLogin && (
+          <button
+            type="button"
+            onClick={() => setShowForgot(true)}
+            className="w-full mt-4 text-xs text-slate-400 hover:text-white transition cursor-pointer"
+          >
+            Esqueci minha senha
+          </button>
+        )}
         <button
           onClick={() => setIsLogin(!isLogin)}
-          className="w-full mt-4 text-xs text-slate-400 hover:text-white transition"
+          className="w-full mt-2 text-xs text-slate-400 hover:text-white transition cursor-pointer"
         >
           {isLogin ? 'Não tem uma conta? Cadastre-se' : 'Já tem conta? Faça login'}
         </button>
+        </>
+        )}
       </div>
     </div>
   );
