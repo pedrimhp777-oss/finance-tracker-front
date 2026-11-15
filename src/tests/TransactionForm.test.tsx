@@ -57,6 +57,35 @@ describe('TransactionForm', () => {
     });
   });
 
+  it('envia date em ISO quando o usuário escolhe uma data', async () => {
+    const user = userEvent.setup();
+    render(<TransactionForm editing={null} saving={false} onSave={onSave} onCancelEdit={onCancelEdit} />);
+
+    await user.type(screen.getByLabelText(/descrição/i), 'Salário de março');
+    await user.type(screen.getByLabelText(/valor/i), '3000');
+    await user.type(screen.getByLabelText(/data/i), '2026-03-15');
+    await user.click(screen.getByRole('button', { name: /adicionar/i }));
+
+    await waitFor(() => {
+      const call = onSave.mock.calls[0][0];
+      expect(call.date).toBeDefined();
+      // Meio-dia local convertido para UTC preserva o dia 15/03,
+      // independentemente do fuso do usuário.
+      const d = new Date(call.date);
+      expect(d.toISOString().startsWith('2026-03-15T')).toBe(true);
+    });
+  });
+
+  it('no modo edição preenche a data existente no fuso local', () => {
+    render(
+      <TransactionForm key="edit-1" editing={tx} saving={false} onSave={onSave} onCancelEdit={onCancelEdit} />,
+    );
+    const d = new Date(tx.date);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const expected = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    expect(screen.getByLabelText(/data/i)).toHaveValue(expected);
+  });
+
   it('não envia com valor inválido', async () => {
     const user = userEvent.setup();
     render(<TransactionForm editing={null} saving={false} onSave={onSave} onCancelEdit={onCancelEdit} />);
