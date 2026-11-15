@@ -87,7 +87,10 @@ export function FinanceFilters({
       <div className="relative w-full md:w-1/3">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
         <input
+          id="filter-search"
+          name="search"
           type="text"
+          autoComplete="off"
           placeholder="Buscar transação..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
@@ -101,6 +104,8 @@ export function FinanceFilters({
 
         {/* Categoria */}
         <select
+          id="filter-category"
+          name="category"
           value={selectedCategory}
           onChange={(e) => setSelectedCategory(e.target.value)}
           aria-label="Filtrar por categoria"
@@ -116,6 +121,8 @@ export function FinanceFilters({
 
         {/* Mês */}
         <select
+          id="filter-month"
+          name="month"
           value={selectedMonth}
           onChange={(e) => setSelectedMonth(e.target.value)}
           aria-label="Filtrar por mês"
@@ -130,6 +137,8 @@ export function FinanceFilters({
 
         {/* Ano (histórico completo do usuário) */}
         <select
+          id="filter-year"
+          name="year"
           value={selectedYear}
           onChange={(e) => setSelectedYear(e.target.value)}
           aria-label="Filtrar por ano"
@@ -145,6 +154,8 @@ export function FinanceFilters({
 
         {/* Dia (habilitado apenas com mês e ano escolhidos) */}
         <select
+          id="filter-day"
+          name="day"
           value={selectedDay}
           onChange={(e) => setSelectedDay(e.target.value)}
           disabled={!dayEnabled}
