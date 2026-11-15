@@ -68,6 +68,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const logout = () => {
+    // Revogação best-effort no servidor: invalida o token no banco, de modo
+    // que uma cópia obtida por terceiros pare de funcionar imediatamente.
+    // - Enviamos o header explicitamente porque o interceptor só injeta o
+    //   Authorization quando ele já não veio, e o token será removido logo
+    //   abaixo (corrida evitada pela captura prévia).
+    // - Nunca bloqueia a UI nem impede o logout local em caso de falha.
+    const currentToken = localStorage.getItem('@FinanceTracker:token');
+    if (currentToken) {
+      try {
+        void Promise.resolve(
+          api.post('/auth/logout', null, {
+            headers: { Authorization: `Bearer ${currentToken}` },
+          }),
+        ).catch(() => undefined);
+      } catch {
+        // Se a chamada falhar de forma síncrona, o logout local continua.
+      }
+    }
     localStorage.removeItem('@FinanceTracker:token');
     setToken(null);
     setUser(null);

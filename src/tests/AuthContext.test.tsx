@@ -117,4 +117,71 @@ describe('AuthContext', () => {
     expect(localStorage.getItem(TOKEN_KEY)).toBeNull();
     expect(screen.getByTestId('authenticated').textContent).toBe('false');
   });
+
+  it('logout revoga a sessão no servidor enviando o token atual', async () => {
+    localStorage.setItem(TOKEN_KEY, 'token-valido');
+    mockedGet.mockResolvedValueOnce({
+      data: { id: 1, name: 'Pedro', email: 'user@email.com' },
+    });
+
+    render(
+      <AuthProvider>
+        <Probe />
+      </AuthProvider>,
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId('authenticated').textContent).toBe('true');
+    });
+
+    await act(async () => {
+      screen.getByText('sair').click();
+    });
+
+    const mockedPost = vi.mocked(api.post);
+    expect(mockedPost).toHaveBeenCalledWith('/auth/logout', null, {
+      headers: { Authorization: 'Bearer token-valido' },
+    });
+  });
+
+  it('logout limpa a sessão local mesmo se a revogação falhar', async () => {
+    localStorage.setItem(TOKEN_KEY, 'token-valido');
+    mockedGet.mockResolvedValueOnce({
+      data: { id: 1, name: 'Pedro', email: 'user@email.com' },
+    });
+    vi.mocked(api.post).mockRejectedValueOnce(new Error('rede indisponível'));
+
+    render(
+      <AuthProvider>
+        <Probe />
+      </AuthProvider>,
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId('authenticated').textContent).toBe('true');
+    });
+
+    await act(async () => {
+      screen.getByText('sair').click();
+    });
+
+    // Falha no servidor não pode prender o usuário logado no cliente.
+    expect(localStorage.getItem(TOKEN_KEY)).toBeNull();
+    expect(screen.getByTestId('authenticated').textContent).toBe('false');
+  });
+
+  it('não tenta revogar no servidor quando não há token', async () => {
+    render(
+      <AuthProvider>
+        <Probe />
+      </AuthProvider>,
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId('loading').textContent).toBe('false');
+    });
+
+    await act(async () => {
+      screen.getByText('sair').click();
+    });
+
+    expect(vi.mocked(api.post)).not.toHaveBeenCalled();
+  });
 });
