@@ -8,6 +8,7 @@ const API_URL = import.meta.env.VITE_API_URL || (
 
 export const api = axios.create({
   baseURL: API_URL,
+  timeout: 30_000,
 });
 
 api.interceptors.request.use((config) => {
@@ -29,3 +30,14 @@ api.interceptors.response.use(
   },
 );
 
+/** Extrai a mensagem de erro amigável de uma resposta da API. */
+export function getApiErrorMessage(error: unknown, fallback: string): string {
+  if (axios.isAxiosError(error)) {
+    const detail = error.response?.data?.detail;
+    if (typeof detail === 'string') return detail;
+    if (Array.isArray(detail)) {
+      return detail.map((d) => d.msg).filter(Boolean).join(' ') || fallback;
+    }
+  }
+  return fallback;
+}

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { api } from '../services/api';
+import { toast, Toaster } from 'react-hot-toast';
+import { api, getApiErrorMessage } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { Wallet, Lock, Mail, User as UserIcon } from 'lucide-react';
 
@@ -8,15 +9,16 @@ export const Auth: React.FC = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const { login } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitting(true);
     try {
       if (isLogin) {
-        // Envia para a rota /auth/login confirmada na documentacao
         const params = new URLSearchParams();
-        params.append('username', email);
+        params.append('username', email.trim().toLowerCase());
         params.append('password', password);
 
         const res = await api.post('/auth/login', params, {
@@ -25,18 +27,29 @@ export const Auth: React.FC = () => {
 
         await login(res.data.access_token);
       } else {
-        await api.post('/auth/register', { name, email, password });
-        alert('Conta criada com sucesso! Faça login.');
+        await api.post('/auth/register', {
+          name: name.trim(),
+          email: email.trim().toLowerCase(),
+          password,
+        });
+        toast.success('Conta criada com sucesso! Faça login.');
         setIsLogin(true);
       }
-    } catch (err: any) {
-      console.error('Erro na resposta do backend:', err.response?.data || err.message);
-      alert(err.response?.data?.detail || 'Erro na autenticação. Verifique seus dados.');
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, 'Erro na autenticação. Verifique seus dados.'));
+    } finally {
+      setSubmitting(false);
     }
   };
 
   return (
     <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          style: { background: '#1e293b', color: '#f8fafc', border: '1px solid #334155' },
+        }}
+      />
       <div className="bg-slate-800 p-8 rounded-2xl border border-slate-700 w-full max-w-md">
         <div className="flex justify-center mb-6">
           <div className="p-3 bg-emerald-500/10 rounded-xl text-emerald-400">
@@ -49,10 +62,11 @@ export const Auth: React.FC = () => {
         <form onSubmit={handleSubmit} className="space-y-4">
           {!isLogin && (
             <div>
-              <label className="block text-xs font-medium text-slate-400 mb-1">Nome</label>
+              <label htmlFor="auth-name" className="block text-xs font-medium text-slate-400 mb-1">Nome</label>
               <div className="relative">
                 <UserIcon className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
                 <input
+                  id="auth-name"
                   type="text"
                   required
                   maxLength={100}
@@ -65,10 +79,11 @@ export const Auth: React.FC = () => {
             </div>
           )}
           <div>
-            <label className="block text-xs font-medium text-slate-400 mb-1">E-mail</label>
+            <label htmlFor="auth-email" className="block text-xs font-medium text-slate-400 mb-1">E-mail</label>
             <div className="relative">
               <Mail className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
               <input
+                id="auth-email"
                 type="email"
                 required
                 value={email}
@@ -79,10 +94,11 @@ export const Auth: React.FC = () => {
             </div>
           </div>
           <div>
-            <label className="block text-xs font-medium text-slate-400 mb-1">Senha</label>
+            <label htmlFor="auth-password" className="block text-xs font-medium text-slate-400 mb-1">Senha</label>
             <div className="relative">
               <Lock className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
               <input
+                id="auth-password"
                 type="password"
                 required
                 minLength={8}
@@ -95,9 +111,10 @@ export const Auth: React.FC = () => {
           </div>
           <button
             type="submit"
-            className="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-semibold py-2.5 rounded-lg transition cursor-pointer"
+            disabled={submitting}
+            className="w-full bg-emerald-500 hover:bg-emerald-600 disabled:opacity-60 disabled:cursor-not-allowed text-slate-950 font-semibold py-2.5 rounded-lg transition cursor-pointer"
           >
-            {isLogin ? 'Entrar' : 'Cadastrar'}
+            {submitting ? 'Aguarde...' : isLogin ? 'Entrar' : 'Cadastrar'}
           </button>
         </form>
         <button
