@@ -4,6 +4,7 @@ import { api, getApiErrorMessage } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { ForgotPasswordForm } from './PasswordRecovery';
 import { Wallet, Lock, Mail, User as UserIcon, Clock } from 'lucide-react';
+import { PASSWORD_TOO_LONG_MESSAGE, isPasswordTooLong } from '../utils/password';
 
 export const Auth: React.FC = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -16,6 +17,11 @@ export const Auth: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // O limite do bcrypt é em bytes: sem isso o usuário só descobre no 422.
+    if (!isLogin && isPasswordTooLong(password)) {
+      toast.error(PASSWORD_TOO_LONG_MESSAGE);
+      return;
+    }
     setSubmitting(true);
     try {
       if (isLogin) {

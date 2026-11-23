@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { api, getApiErrorMessage } from '../services/api';
 import { Mail, Lock, Wallet, ArrowLeft, CheckCircle2 } from 'lucide-react';
+import { PASSWORD_TOO_LONG_MESSAGE, isPasswordTooLong } from '../utils/password';
 
 const inputClass =
   'w-full bg-slate-900 border border-slate-700 rounded-lg py-2 pl-9 pr-3 text-white text-sm focus:outline-none focus:border-emerald-500';
@@ -136,6 +137,10 @@ export const ResetPassword: React.FC<{
 
     if (password.length < 8) {
       setError('A senha deve ter pelo menos 8 caracteres.');
+      return;
+    }
+    if (isPasswordTooLong(password)) {
+      setError(PASSWORD_TOO_LONG_MESSAGE);
       return;
     }
     if (password !== confirm) {

@@ -148,4 +148,17 @@ describe('Recuperação de senha', () => {
     await user.click(await screen.findByRole('button', { name: /ir para o login/i }));
     expect(onDone).toHaveBeenCalled();
   });
+
+  it('recusa nova senha acima de 72 bytes antes de chamar a API (F7)', async () => {
+    const user = userEvent.setup();
+    render(<ResetPassword token="token-do-email" onDone={vi.fn()} />);
+
+    const longa = 'á'.repeat(37); // 74 bytes
+    await user.type(screen.getByLabelText(/^nova senha$/i), longa);
+    await user.type(screen.getByLabelText(/confirme/i), longa);
+    await user.click(screen.getByRole('button', { name: /salvar nova senha/i }));
+
+    expect(await screen.findByText(/72 bytes/i)).toBeInTheDocument();
+    expect(api.post).not.toHaveBeenCalled();
+  });
 });
