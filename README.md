@@ -127,7 +127,7 @@ A política foi derivada dos recursos **reais** do bundle, não de suposição:
 ## Testes
 
 ```bash
-npm test            # 42 testes
+npm test            # 59 testes
 npm run lint        # oxlint
 npx tsc --noEmit    # tipos
 ```
@@ -139,7 +139,10 @@ npx tsc --noEmit    # tipos
 | `TransactionForm.test.tsx` | máscara de data, validação, criação/edição |
 | `FinanceFilters.test.tsx` | anos derivados, dia condicionado, limpeza de estado |
 | `PasswordRecovery.test.tsx` | solicitar link, senhas divergentes, payload, limpeza do token |
-| `useTransactions.test.tsx` | filtros, paginação, exportação |
+| `useTransactions.test.tsx` | filtros, paginação sem piscar a tabela, exportação |
+| `Dashboard.test.tsx` | criação limpa o formulário, "carregar mais" mantém a tabela, moeda pt-BR |
+| `currency.test.ts` | formatação BRL (milhar, centavos, negativos, NaN) |
+| `apiSessionExpiry.test.ts` | 401 de sessão expirada vs. 401 do login |
 | `getApiErrorMessage.test.ts` | extração de mensagem de erro do FastAPI |
 
 ## Rodando local

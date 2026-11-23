@@ -12,6 +12,7 @@ import {
 } from 'recharts';
 import type { Summary } from '../types/finance';
 import type { CategoryTotal } from '../hooks/useTransactions';
+import { formatCurrency, formatCurrencyCompact } from '../utils/currency';
 
 interface FinanceChartsProps {
   /** Agregação server-side de despesas por categoria (todas as filtradas). */
@@ -57,7 +58,7 @@ export function FinanceCharts({ expensesByCategory, summary }: FinanceChartsProp
                 ))}
               </Pie>
               <Tooltip
-                formatter={(value) => `R$ ${Number(value ?? 0).toFixed(2)}`}
+                formatter={(value) => formatCurrency(Number(value ?? 0))}
                 contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '0.75rem', color: '#f8fafc' }}
                 itemStyle={{ color: '#f8fafc' }}
               />
@@ -75,9 +76,13 @@ export function FinanceCharts({ expensesByCategory, summary }: FinanceChartsProp
         <ResponsiveContainer width="100%" height={260}>
           <BarChart data={barData}>
             <XAxis dataKey="name" stroke="#94a3b8" />
-            <YAxis stroke="#94a3b8" />
+            <YAxis
+              stroke="#94a3b8"
+              tickFormatter={(value) => formatCurrencyCompact(Number(value ?? 0))}
+              width={80}
+            />
             <Tooltip
-              formatter={(value) => `R$ ${Number(value ?? 0).toFixed(2)}`}
+              formatter={(value) => formatCurrency(Number(value ?? 0))}
               contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '0.75rem', color: '#f8fafc' }}
               itemStyle={{ color: '#f8fafc' }}
             />

@@ -3,7 +3,7 @@ import { toast, Toaster } from 'react-hot-toast';
 import { api, getApiErrorMessage } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { ForgotPasswordForm } from './PasswordRecovery';
-import { Wallet, Lock, Mail, User as UserIcon } from 'lucide-react';
+import { Wallet, Lock, Mail, User as UserIcon, Clock } from 'lucide-react';
 
 export const Auth: React.FC = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -12,7 +12,7 @@ export const Auth: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const { login } = useAuth();
+  const { login, sessionExpired } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,6 +65,15 @@ export const Auth: React.FC = () => {
               ? 'Entrar no Finance Tracker'
               : 'Criar Conta'}
         </h2>
+        {sessionExpired && !showForgot && (
+          <div
+            role="status"
+            className="mb-4 flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-300"
+          >
+            <Clock className="w-4 h-4 shrink-0 mt-0.5" />
+            <span>Sua sessão expirou. Entre novamente para continuar.</span>
+          </div>
+        )}
         {showForgot ? (
           <ForgotPasswordForm onBack={() => setShowForgot(false)} />
         ) : (

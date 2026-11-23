@@ -11,6 +11,26 @@ export const api = axios.create({
   timeout: 30_000,
 });
 
+/**
+ * Rotas que autenticam: um 401 nelas significa "credenciais erradas" (ou
+ * e-mail inexistente), não "sessão expirou". Sem essa distinção, errar a senha
+ * no login apagava o token de uma sessão que poderia estar válida em outra aba.
+ */
+const UNAUTHENTICATED_ROUTES = [
+  '/auth/login',
+  '/auth/register',
+  '/auth/forgot-password',
+  '/auth/reset-password',
+];
+
+/** true quando o 401 indica que a sessão atual deixou de valer. */
+export function isSessionExpiry(error: unknown): boolean {
+  if (!axios.isAxiosError(error)) return false;
+  if (error.response?.status !== 401) return false;
+  const url = error.config?.url ?? '';
+  return !UNAUTHENTICATED_ROUTES.some((route) => url.startsWith(route));
+}
+
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('@FinanceTracker:token');
   if (token && !config.headers.Authorization) {
@@ -22,7 +42,7 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    if (isSessionExpiry(error)) {
       localStorage.removeItem('@FinanceTracker:token');
       window.dispatchEvent(new Event('finance-tracker:unauthorized'));
     }
