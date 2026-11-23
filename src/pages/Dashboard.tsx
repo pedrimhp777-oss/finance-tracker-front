@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useCallback, useMemo, useState } from 'react';
+import React, { Suspense, lazy, useCallback, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { LogOut, TrendingUp, TrendingDown, DollarSign, Trash2, Download, Pencil, AlertTriangle } from 'lucide-react';
 import { TransactionForm } from '../components/TransactionForm';
@@ -42,22 +42,13 @@ export const Dashboard: React.FC = () => {
     refreshing,
     loadingMore,
     hasMore,
+    years,
     loadMore,
     createTransaction,
     updateTransaction,
     deleteTransaction,
     exportExcel,
   } = useTransactions(filters);
-
-  // Ano mais antigo do histórico carregado: alimenta a lista de anos do
-  // filtro (derivada dos dados reais, sem lista arbitrária).
-  const minYear = useMemo(() => {
-    if (transactions.length === 0) return new Date().getFullYear();
-    return transactions.reduce((min, t) => {
-      const y = new Date(t.date).getFullYear();
-      return Number.isFinite(y) && y < min ? y : min;
-    }, new Date().getFullYear());
-  }, [transactions]);
 
   const handleFilterChange = (key: keyof TransactionFilters, value: string) => {
     setFilters((prev) => {
@@ -194,7 +185,7 @@ export const Dashboard: React.FC = () => {
           setSelectedYear={(v) => handleFilterChange('year', v)}
           selectedDay={filters.day ?? ''}
           setSelectedDay={(v) => handleFilterChange('day', v)}
-          minYear={minYear}
+          years={years}
         />
         </Suspense>
 

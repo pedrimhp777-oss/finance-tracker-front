@@ -55,8 +55,8 @@ describe('useTransactions', () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(400);
     });
-    // 3 chamadas: lista + resumo + categorias
-    expect(mockedGet).toHaveBeenCalledTimes(3);
+    // 4 chamadas: lista + resumo + categorias + anos disponíveis.
+    expect(mockedGet).toHaveBeenCalledTimes(4);
   });
 
   it('loadMore acrescenta a próxima página sem perder a primeira (C1)', async () => {
@@ -154,6 +154,7 @@ describe('useTransactions', () => {
       if (url === '/transactions/categories') return Promise.resolve({ data: [] });
       if (url === '/transactions/summary')
         return Promise.resolve({ data: { total_income: 0, total_expense: 2, balance: -2 } });
+      if (url === '/transactions/years') return Promise.resolve({ data: [2026] });
       const skip = config?.params?.skip ?? 0;
       return skip === 0 ? Promise.resolve(mockListResponse([1, 2])) : pendingPage;
     }) as typeof api.get);
@@ -196,6 +197,7 @@ describe('useTransactions', () => {
       if (url === '/transactions/categories') return Promise.resolve({ data: [] });
       if (url === '/transactions/summary')
         return Promise.resolve({ data: { total_income: 0, total_expense: 1, balance: -1 } });
+      if (url === '/transactions/years') return Promise.resolve({ data: [2026] });
       listCalls += 1;
       return listCalls === 1 ? Promise.resolve(mockListResponse([1])) : pending;
     }) as typeof api.get);
@@ -224,5 +226,57 @@ describe('useTransactions', () => {
       await Promise.resolve();
     });
     expect(result.current.refreshing).toBe(false);
+  });
+
+  it('anos vêm do endpoint, não da página carregada (F3)', async () => {
+    const chamadas: string[] = [];
+    mockedGet.mockImplementation(((url: string) => {
+      chamadas.push(url);
+      if (url === '/transactions/years') return Promise.resolve({ data: [2025, 2022, 2019] });
+      if (url === '/transactions/categories') return Promise.resolve({ data: [] });
+      if (url === '/transactions/summary')
+        return Promise.resolve({ data: { total_income: 0, total_expense: 0, balance: 0 } });
+      // A página só tem transações de 2025: derivar os anos daqui esconderia
+      // 2022 e 2019.
+      return Promise.resolve(mockListResponse([1]));
+    }) as typeof api.get);
+
+    const { result } = renderHook(() => useTransactions(EMPTY_FILTERS));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(400);
+    });
+
+    expect(result.current.years).toEqual([2025, 2022, 2019]);
+    expect(chamadas).toContain('/transactions/years');
+  });
+
+  it('recarrega os anos depois de criar uma transação em outro ano', async () => {
+    let anos = [2025];
+    mockedGet.mockImplementation(((url: string) => {
+      if (url === '/transactions/years') return Promise.resolve({ data: anos });
+      if (url === '/transactions/categories') return Promise.resolve({ data: [] });
+      if (url === '/transactions/summary')
+        return Promise.resolve({ data: { total_income: 0, total_expense: 0, balance: 0 } });
+      return Promise.resolve(mockListResponse([]));
+    }) as typeof api.get);
+    vi.mocked(api.post).mockResolvedValueOnce({ data: {} });
+
+    const { result } = renderHook(() => useTransactions(EMPTY_FILTERS));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(400);
+    });
+    expect(result.current.years).toEqual([2025]);
+
+    anos = [2026, 2025];
+    await act(async () => {
+      await result.current.createTransaction({
+        description: 'Nova',
+        amount: 10,
+        type: 'expense',
+        category: 'Outros',
+      });
+    });
+
+    expect(result.current.years).toEqual([2026, 2025]);
   });
 });

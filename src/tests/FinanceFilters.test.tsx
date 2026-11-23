@@ -17,19 +17,24 @@ const base = {
 };
 
 describe('FinanceFilters', () => {
-  it('lista anos a partir do histórico do usuário (mais recente primeiro)', () => {
-    render(<FinanceFilters {...base} minYear={2021} />);
+  it('mostra exatamente os anos com transações, na ordem do servidor (F3)', () => {
+    // Antes a lista era derivada das transações carregadas: com um ano
+    // selecionado, o seletor oferecia só aquele ano.
+    render(<FinanceFilters {...base} years={[2025, 2023, 2019]} />);
     const yearSelect = screen.getByRole('combobox', { name: 'Filtrar por ano' }) as HTMLSelectElement;
     const options = Array.from(yearSelect.options).map((o) => o.value);
-    const currentYear = new Date().getFullYear();
-    // Todos os anos de 2021 até currentYear + 1, do mais recente ao mais antigo.
-    const expected: string[] = [];
-    for (let y = currentYear + 1; y >= 2021; y--) expected.push(String(y));
-    expect(options).toEqual(['', ...expected]);
+    expect(options).toEqual(['', '2025', '2023', '2019']);
+  });
+
+  it('mostra o ano atual quando a conta não tem transações', () => {
+    render(<FinanceFilters {...base} years={[]} />);
+    const yearSelect = screen.getByRole('combobox', { name: 'Filtrar por ano' }) as HTMLSelectElement;
+    const options = Array.from(yearSelect.options).map((o) => o.value);
+    expect(options).toEqual(['', String(new Date().getFullYear())]);
   });
 
   it('desabilita o filtro de dia até mês e ano estarem escolhidos', () => {
-    render(<FinanceFilters {...base} minYear={2026} />);
+    render(<FinanceFilters {...base} years={[2026]} />);
     expect(screen.getByTitle(/escolha o mês e o ano/i)).toBeDisabled();
   });
 
@@ -39,7 +44,7 @@ describe('FinanceFilters', () => {
         {...base}
         selectedMonth="2"
         selectedYear="2026"
-        minYear={2026}
+        years={[2026]}
       />,
     );
     const day = screen.getByRole('combobox', { name: 'Filtrar por dia' }) as HTMLSelectElement;
@@ -56,7 +61,7 @@ describe('FinanceFilters', () => {
         {...base}
         selectedMonth="3"
         selectedYear="2026"
-        minYear={2026}
+        years={[2026]}
       />,
     );
     const day = screen.getByRole('combobox', { name: 'Filtrar por dia' }) as HTMLSelectElement;

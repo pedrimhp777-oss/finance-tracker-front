@@ -34,6 +34,7 @@ function row(id: number) {
 /** Mocka lista/resumo/categorias; `list` recebe a config de cada página. */
 function mockApi(list: (config?: { params?: { skip?: number } }) => Promise<unknown>) {
   mockedGet.mockImplementation(((url: string, config?: { params?: { skip?: number } }) => {
+    if (url === '/transactions/years') return Promise.resolve({ data: [2026] });
     if (url === '/transactions/categories')
       return Promise.resolve({ data: [{ category: 'Outros', total: '10.00' }] });
     if (url === '/transactions/summary')
