@@ -116,4 +116,40 @@ describe('Dashboard', () => {
     expect(screen.getByText(/R\$\s?90,00/)).toBeInTheDocument();
     expect(screen.getByText(/-\s?R\$\s?10,00/)).toBeInTheDocument();
   });
+
+  it('fecha o modal de exclusão com Esc (F10)', async () => {
+    mockApi(() => Promise.resolve({ data: [row(1)] }));
+    render(<Dashboard />);
+    await screen.findByText('T1', undefined, { timeout: 3000 });
+
+    fireEvent.click(screen.getByLabelText('Excluir T1'));
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(api.delete).not.toHaveBeenCalled();
+  });
+
+  it('mantém o foco dentro do modal e começa pelo botão seguro (F10)', async () => {
+    mockApi(() => Promise.resolve({ data: [row(1)] }));
+    render(<Dashboard />);
+    await screen.findByText('T1', undefined, { timeout: 3000 });
+
+    fireEvent.click(screen.getByLabelText('Excluir T1'));
+
+    // Abre no "Cancelar", não no destrutivo.
+    await waitFor(() => expect(screen.getByText('Cancelar')).toHaveFocus());
+
+    const destrutivo = screen.getByText('Sim, Excluir');
+    destrutivo.focus();
+
+    // Tab no último elemento volta para o primeiro: o foco não escapa.
+    fireEvent.keyDown(document, { key: 'Tab' });
+    expect(screen.getByText('Cancelar')).toHaveFocus();
+
+    // Shift+Tab no primeiro vai para o último.
+    fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
+    expect(destrutivo).toHaveFocus();
+  });
 });
