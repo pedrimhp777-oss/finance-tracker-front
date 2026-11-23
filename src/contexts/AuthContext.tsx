@@ -13,7 +13,10 @@ interface AuthContextType {
   logout: () => void;
 }
 
-const AuthContext = createContext<AuthContextType>({} as AuthContextType);
+// null e não `{} as AuthContextType`: um objeto vazio faz `useAuth()` fora do
+// provider "funcionar" e quebrar depois, no meio do componente, com
+// "user is undefined". O erro precisa aparecer onde o hook foi chamado.
+const AuthContext = createContext<AuthContextType | null>(null);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [token, setToken] = useState<string | null>(null);
@@ -108,5 +111,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   );
 };
 
-export const useAuth = () => useContext(AuthContext);
+export const useAuth = (): AuthContextType => {
+  const context = useContext(AuthContext);
+  if (context === null) {
+    throw new Error('useAuth precisa ser usado dentro de <AuthProvider>.');
+  }
+  return context;
+};
 

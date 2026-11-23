@@ -48,8 +48,16 @@ interface ParsedDateInput {
 }
 
 /** Valida dd/mm/aaaa completo e converte para ISO UTC (meio-dia local,
- * preservando o dia escolhido em qualquer fuso). Recusa datas futuras. */
-const parseDateInput = (value: string): ParsedDateInput | null => {
+ * preservando o dia escolhido em qualquer fuso). Recusa datas futuras.
+ *
+ * `original` existe para a edição: o campo só mostra o dia, então o horário
+ * era reescrito como meio-dia local a cada save, mudando o instante da
+ * transação sem o usuário pedir. Se o dia escolhido é o mesmo da transação
+ * original, o horário dela é mantido. */
+const parseDateInput = (
+  value: string,
+  original?: string | null,
+): ParsedDateInput | null => {
   const digits = value.replace(/\D/g, '');
   if (digits.length === 0) return { iso: '' }; // campo vazio: usa hoje
   if (digits.length !== 8) {
@@ -74,6 +82,24 @@ const parseDateInput = (value: string): ParsedDateInput | null => {
   if (parsed > today) {
     return { iso: '', error: 'A data não pode estar no futuro.' };
   }
+
+  if (original) {
+    const dataOriginal = new Date(original);
+    const mesmoDia =
+      !Number.isNaN(dataOriginal.getTime()) &&
+      dataOriginal.getFullYear() === parsed.getFullYear() &&
+      dataOriginal.getMonth() === parsed.getMonth() &&
+      dataOriginal.getDate() === parsed.getDate();
+    if (mesmoDia) {
+      parsed.setHours(
+        dataOriginal.getHours(),
+        dataOriginal.getMinutes(),
+        dataOriginal.getSeconds(),
+        dataOriginal.getMilliseconds(),
+      );
+    }
+  }
+
   return { iso: parsed.toISOString() };
 };
 
@@ -99,7 +125,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
     const parsedAmount = Number.parseFloat(amount);
     if (!description.trim() || Number.isNaN(parsedAmount) || parsedAmount <= 0) return;
 
-    const parsedDate = parseDateInput(dateInput);
+    const parsedDate = parseDateInput(dateInput, editing?.date);
     if (parsedDate?.error) {
       setDateError(parsedDate.error);
       return;

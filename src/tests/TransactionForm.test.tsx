@@ -122,3 +122,58 @@ describe('TransactionForm', () => {
     expect(screen.getByRole('button', { name: /salvando/i })).toBeDisabled();
   });
 });
+
+describe('TransactionForm — horário na edição (F10)', () => {
+  const onSave = vi.fn().mockResolvedValue(undefined);
+  const onCancelEdit = vi.fn();
+
+  beforeEach(() => {
+    onSave.mockClear();
+  });
+
+  it('mantém o instante original ao salvar sem trocar o dia', async () => {
+    // Fora do meio-dia de propósito: antes o save reescrevia a data para
+    // 12:00 local e o instante mudava sem o usuário pedir.
+    const comHora: Transaction = { ...tx, date: '2026-11-14T23:30:00Z' };
+
+    render(
+      <TransactionForm
+        key="edit-hora"
+        editing={comHora}
+        saving={false}
+        onSave={onSave}
+        onCancelEdit={onCancelEdit}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /salvar/i }));
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+
+    const payload = onSave.mock.calls[0][0];
+    // Compara o instante, não a string: a serialização normaliza os milissegundos.
+    expect(new Date(payload.date).getTime()).toBe(new Date(comHora.date).getTime());
+  });
+
+  it('usa meio-dia local quando o dia é alterado', async () => {
+    render(
+      <TransactionForm
+        key="edit-dia"
+        editing={tx}
+        saving={false}
+        onSave={onSave}
+        onCancelEdit={onCancelEdit}
+      />,
+    );
+
+    const campo = screen.getByLabelText(/data/i);
+    fireEvent.change(campo, { target: { value: '15032026' } });
+    fireEvent.click(screen.getByRole('button', { name: /salvar/i }));
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+
+    const enviada = new Date(onSave.mock.calls[0][0].date);
+    expect(enviada.getHours()).toBe(12);
+    expect(enviada.getMinutes()).toBe(0);
+    expect(enviada.getDate()).toBe(15);
+    expect(enviada.getMonth()).toBe(2); // março
+  });
+});

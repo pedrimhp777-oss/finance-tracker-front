@@ -185,3 +185,22 @@ describe('AuthContext', () => {
     expect(vi.mocked(api.post)).not.toHaveBeenCalled();
   });
 });
+
+describe('useAuth fora do provider (F10)', () => {
+  it('estoura com mensagem clara em vez de devolver contexto vazio', () => {
+    const Consumidor = () => {
+      useAuth();
+      return null;
+    };
+
+    // React 19 repassa o erro do render; silenciamos o log esperado.
+    const silencio = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      expect(() => render(<Consumidor />)).toThrow(
+        'useAuth precisa ser usado dentro de <AuthProvider>.',
+      );
+    } finally {
+      silencio.mockRestore();
+    }
+  });
+});
