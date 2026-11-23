@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { Calendar, Pencil, Plus, X } from 'lucide-react';
+import { CATEGORIES } from '../constants/categories';
 import type {
   Transaction,
   TransactionCategory,
@@ -7,16 +8,6 @@ import type {
   TransactionType,
 } from '../types/finance';
 
-const CATEGORIES: TransactionCategory[] = [
-  'Alimentação',
-  'Transporte',
-  'Moradia',
-  'Saúde',
-  'Educação',
-  'Lazer',
-  'Trabalho',
-  'Outros',
-];
 
 interface TransactionFormProps {
   editing: Transaction | null;

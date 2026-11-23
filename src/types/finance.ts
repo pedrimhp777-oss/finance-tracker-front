@@ -1,14 +1,12 @@
+import { CATEGORIES } from '../constants/categories';
+
 export type TransactionType = 'income' | 'expense';
 
-export type TransactionCategory =
-  | 'Alimentação'
-  | 'Transporte'
-  | 'Moradia'
-  | 'Saúde'
-  | 'Educação'
-  | 'Lazer'
-  | 'Trabalho'
-  | 'Outros';
+/**
+ * Derivado de `CATEGORIES` (em `constants/categories.ts`), e não o contrário:
+ * assim o tipo e a lista que o formulário renderiza não podem divergir.
+ */
+export type TransactionCategory = (typeof CATEGORIES)[number];
 
 export interface Transaction {
   id: number;
