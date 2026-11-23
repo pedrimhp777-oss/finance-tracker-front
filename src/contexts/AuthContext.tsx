@@ -7,6 +7,8 @@ interface AuthContextType {
   token: string | null;
   authenticated: boolean;
   loading: boolean;
+  /** true quando a sessão caiu por 401 (expirou ou foi revogada). */
+  sessionExpired: boolean;
   login: (token: string) => Promise<void>;
   logout: () => void;
 }
@@ -17,6 +19,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [sessionExpired, setSessionExpired] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -25,6 +28,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (active) {
         setToken(null);
         setUser(null);
+        // Sem este sinal o usuário era devolvido ao login sem explicação,
+        // como se tivesse errado a senha.
+        setSessionExpired(true);
       }
     };
     window.addEventListener('finance-tracker:unauthorized', clearSession);
@@ -65,6 +71,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     localStorage.setItem('@FinanceTracker:token', newToken);
     setToken(newToken);
     setUser(data);
+    setSessionExpired(false);
   };
 
   const logout = () => {
@@ -89,10 +96,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     localStorage.removeItem('@FinanceTracker:token');
     setToken(null);
     setUser(null);
+    setSessionExpired(false);
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, authenticated: !!token, loading, login, logout }}>
+    <AuthContext.Provider
+      value={{ user, token, authenticated: !!token, loading, sessionExpired, login, logout }}
+    >
       {children}
     </AuthContext.Provider>
   );

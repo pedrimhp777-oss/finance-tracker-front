@@ -4,6 +4,7 @@ import { LogOut, TrendingUp, TrendingDown, DollarSign, Trash2, Download, Pencil,
 import { TransactionForm } from '../components/TransactionForm';
 import { useTransactions } from '../hooks/useTransactions';
 import { getApiErrorMessage } from '../services/api';
+import { formatCurrency } from '../utils/currency';
 import type { Transaction, TransactionFilters, TransactionPayload } from '../types/finance';
 import toast, { Toaster } from 'react-hot-toast';
 
@@ -28,12 +29,17 @@ export const Dashboard: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState<Transaction | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  // Muda a cada criação bem-sucedida para remontar o formulário e limpar os
+  // campos: `editing` já era null antes de criar, então a key não mudaria.
+  const [formSession, setFormSession] = useState(0);
 
   const {
     transactions,
     summary,
     expensesByCategory,
     loading,
+    refreshing,
+    loadingMore,
     hasMore,
     loadMore,
     createTransaction,
@@ -78,6 +84,7 @@ export const Dashboard: React.FC = () => {
         await updateTransaction(editing.id, payload);
       } else {
         await createTransaction(payload);
+        setFormSession((n) => n + 1);
       }
       setEditing(null);
     } catch (err) {
@@ -144,7 +151,7 @@ export const Dashboard: React.FC = () => {
                 <TrendingUp className="w-5 h-5" />
               </div>
             </div>
-            <h2 className="text-2xl font-bold text-emerald-400">R$ {summary.total_income.toFixed(2)}</h2>
+            <h2 className="text-2xl font-bold text-emerald-400">{formatCurrency(summary.total_income)}</h2>
           </div>
 
           <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700">
@@ -154,7 +161,7 @@ export const Dashboard: React.FC = () => {
                 <TrendingDown className="w-5 h-5" />
               </div>
             </div>
-            <h2 className="text-2xl font-bold text-red-400">R$ {summary.total_expense.toFixed(2)}</h2>
+            <h2 className="text-2xl font-bold text-red-400">{formatCurrency(summary.total_expense)}</h2>
           </div>
 
           <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700">
@@ -165,7 +172,7 @@ export const Dashboard: React.FC = () => {
               </div>
             </div>
             <h2 className={`text-2xl font-bold ${summary.balance >= 0 ? 'text-blue-400' : 'text-red-400'}`}>
-              R$ {summary.balance.toFixed(2)}
+              {formatCurrency(summary.balance)}
             </h2>
           </div>
         </div>
@@ -198,7 +205,7 @@ export const Dashboard: React.FC = () => {
         {/* Conteúdo Principal (Formulário + Tabela) */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <TransactionForm
-            key={editing?.id ?? 'new'}
+            key={`${editing?.id ?? 'new'}-${formSession}`}
             editing={editing}
             saving={saving}
             onSave={handleSaveTransaction}
@@ -222,7 +229,10 @@ export const Dashboard: React.FC = () => {
             ) : transactions.length === 0 ? (
               <p className="text-slate-400 text-sm text-center py-8">Nenhuma transação encontrada.</p>
             ) : (
-              <div className="overflow-x-auto">
+              <div
+                className={`overflow-x-auto transition-opacity ${refreshing ? 'opacity-60' : ''}`}
+                aria-busy={refreshing}
+              >
                 <table className="w-full text-left text-sm text-slate-300">
                   <thead className="border-b border-slate-700 text-slate-400">
                     <tr>
@@ -246,7 +256,7 @@ export const Dashboard: React.FC = () => {
                           {item.date ? new Date(item.date).toLocaleDateString('pt-BR') : 'N/A'}
                         </td>
                         <td className={`py-3 font-semibold ${item.type === 'income' ? 'text-emerald-400' : 'text-red-400'}`}>
-                          {item.type === 'income' ? '+' : '-'} R$ {item.amount.toFixed(2)}
+                          {item.type === 'income' ? '+' : '-'} {formatCurrency(item.amount)}
                         </td>
                         <td className="py-3 text-right">
                           <div className="flex items-center justify-end gap-2">
@@ -276,9 +286,10 @@ export const Dashboard: React.FC = () => {
                   <div className="text-center pt-4">
                     <button
                       onClick={() => void loadMore()}
-                      className="text-slate-400 hover:text-white text-sm underline underline-offset-4 transition cursor-pointer"
+                      disabled={loadingMore}
+                      className="text-slate-400 hover:text-white text-sm underline underline-offset-4 transition cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                     >
-                      Carregar mais transações
+                      {loadingMore ? 'Carregando mais...' : 'Carregar mais transações'}
                     </button>
                   </div>
                 )}

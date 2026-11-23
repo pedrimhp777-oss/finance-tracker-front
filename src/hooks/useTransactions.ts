@@ -44,8 +44,14 @@ export function useTransactions(filters: TransactionFilters) {
     balance: 0,
   });
   const [expensesByCategory, setExpensesByCategory] = useState<CategoryTotal[]>([]);
+  /** Primeira carga: é o único momento em que a tabela pode sair da tela. */
   const [loading, setLoading] = useState(true);
+  /** Recarga com dados já visíveis (filtro, criação, edição, exclusão). */
+  const [refreshing, setRefreshing] = useState(false);
+  /** Paginação: "Carregar mais" mantém a tabela inteira na tela. */
+  const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
+  const hasLoadedRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
 
   const fetchPage = useCallback(
@@ -58,14 +64,19 @@ export function useTransactions(filters: TransactionFilters) {
       const controller = new AbortController();
       abortRef.current = controller;
 
-      setLoading(true);
+      // Só a primeira carga pode trocar a tabela por "Carregando...". Refiltragem,
+      // CRUD e paginação mantêm os dados na tela: piscar o histórico a cada
+      // interação fazia a tabela desaparecer sem necessidade.
+      if (mode === 'append') setLoadingMore(true);
+      else if (hasLoadedRef.current) setRefreshing(true);
+      else setLoading(true);
+
       try {
         const params = {
           ...filterParams(currentFilters),
           skip,
           limit: PAGE_SIZE,
-        };
-        const [listRes, summaryRes, categoriesRes] = await Promise.all([
+        };        const [listRes, summaryRes, categoriesRes] = await Promise.all([
           api.get<Transaction[]>('/transactions/', {
             params,
             signal: controller.signal,
@@ -99,12 +110,17 @@ export function useTransactions(filters: TransactionFilters) {
           })),
         );
         setHasMore(page.length === PAGE_SIZE);
+        hasLoadedRef.current = true;
       } catch (err) {
         if (!controller.signal.aborted) {
           toast.error(getApiErrorMessage(err, 'Erro ao carregar os dados financeiros.'));
         }
       } finally {
-        if (!controller.signal.aborted) setLoading(false);
+        if (!controller.signal.aborted) {
+          setLoading(false);
+          setRefreshing(false);
+          setLoadingMore(false);
+        }
       }
     },
     [],
@@ -165,6 +181,8 @@ export function useTransactions(filters: TransactionFilters) {
     summary,
     expensesByCategory,
     loading,
+    refreshing,
+    loadingMore,
     hasMore,
     loadMore,
     createTransaction,

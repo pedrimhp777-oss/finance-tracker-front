@@ -143,4 +143,86 @@ describe('useTransactions', () => {
       category: 'Outros',
     });
   });
+
+  it('paginação não ativa o loading de tela cheia (F2)', async () => {
+    let releasePage: (value: unknown) => void = () => {};
+    const pendingPage = new Promise((resolve) => {
+      releasePage = resolve;
+    });
+
+    mockedGet.mockImplementation(((url: string, config?: { params?: { skip?: number } }) => {
+      if (url === '/transactions/categories') return Promise.resolve({ data: [] });
+      if (url === '/transactions/summary')
+        return Promise.resolve({ data: { total_income: 0, total_expense: 2, balance: -2 } });
+      const skip = config?.params?.skip ?? 0;
+      return skip === 0 ? Promise.resolve(mockListResponse([1, 2])) : pendingPage;
+    }) as typeof api.get);
+
+    const { result } = renderHook(() => useTransactions(EMPTY_FILTERS));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(400);
+    });
+    expect(result.current.loading).toBe(false);
+
+    let append: Promise<void> = Promise.resolve();
+    act(() => {
+      append = result.current.loadMore();
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    // A tabela continua montada: apenas `loadingMore` liga.
+    expect(result.current.loading).toBe(false);
+    expect(result.current.loadingMore).toBe(true);
+    expect(result.current.transactions.map((t) => t.id)).toEqual([1, 2]);
+
+    await act(async () => {
+      releasePage(mockListResponse([3]));
+      await append;
+    });
+    expect(result.current.loadingMore).toBe(false);
+    expect(result.current.transactions.map((t) => t.id)).toEqual([1, 2, 3]);
+  });
+
+  it('refiltragem mantém os dados na tela e usa `refreshing` (F2)', async () => {
+    let releaseSecond: (value: unknown) => void = () => {};
+    const pending = new Promise((resolve) => {
+      releaseSecond = resolve;
+    });
+    let listCalls = 0;
+
+    mockedGet.mockImplementation(((url: string) => {
+      if (url === '/transactions/categories') return Promise.resolve({ data: [] });
+      if (url === '/transactions/summary')
+        return Promise.resolve({ data: { total_income: 0, total_expense: 1, balance: -1 } });
+      listCalls += 1;
+      return listCalls === 1 ? Promise.resolve(mockListResponse([1])) : pending;
+    }) as typeof api.get);
+
+    const { result, rerender } = renderHook(({ f }) => useTransactions(f), {
+      initialProps: { f: EMPTY_FILTERS },
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(400);
+    });
+    expect(result.current.transactions.map((t) => t.id)).toEqual([1]);
+
+    rerender({ f: { ...EMPTY_FILTERS, search: 'mercado' } });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(400);
+    });
+
+    expect(result.current.loading).toBe(false);
+    expect(result.current.refreshing).toBe(true);
+    expect(result.current.transactions.map((t) => t.id)).toEqual([1]);
+
+    await act(async () => {
+      releaseSecond(mockListResponse([]));
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(result.current.refreshing).toBe(false);
+  });
 });
