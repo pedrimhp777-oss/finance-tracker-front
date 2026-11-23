@@ -116,7 +116,7 @@ export const ForgotPasswordForm: React.FC<{ onBack: () => void }> = ({ onBack })
 
 /**
  * Tela de criação de nova senha, aberta pelo link do e-mail
- * (`/?reset_token=...`).
+ * (`/#reset_token=...`).
  *
  * O token é enviado no corpo do POST e nunca fica em estado global. Ao
  * concluir, o parâmetro é removido da URL para não sobrar credencial no

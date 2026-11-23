@@ -3,18 +3,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Auth } from './pages/Auth';
 import { Dashboard } from './pages/Dashboard';
 import { ResetPassword } from './pages/PasswordRecovery';
-
-/** Lê o token de redefinição do link enviado por e-mail (`?reset_token=`). */
-function readResetToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  return new URLSearchParams(window.location.search).get('reset_token');
-}
-
-/** Remove o token da URL, para não sobrar credencial no histórico do navegador. */
-function clearResetTokenFromUrl(): void {
-  if (typeof window === 'undefined') return;
-  window.history.replaceState({}, '', window.location.pathname);
-}
+import { clearResetTokenFromUrl, readResetToken } from './utils/resetLink';
 
 const MainContent: React.FC = () => {
   const { authenticated, loading } = useAuth();
