@@ -1,16 +1,5 @@
 import { Search, Filter } from 'lucide-react';
-import type { TransactionCategory } from '../types/finance';
-
-const CATEGORIES: TransactionCategory[] = [
-  'Alimentação',
-  'Transporte',
-  'Moradia',
-  'Saúde',
-  'Educação',
-  'Lazer',
-  'Trabalho',
-  'Outros',
-];
+import { CATEGORIES } from '../constants/categories';
 
 interface FinanceFiltersProps {
   searchTerm: string;

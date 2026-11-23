@@ -13,6 +13,7 @@ import {
 import type { Summary } from '../types/finance';
 import type { CategoryTotal } from '../hooks/useTransactions';
 import { formatCurrency, formatCurrencyCompact } from '../utils/currency';
+import { comCoresPorCategoria } from '../constants/categories';
 
 interface FinanceChartsProps {
   /** Agregação server-side de despesas por categoria (todas as filtradas). */
@@ -21,12 +22,12 @@ interface FinanceChartsProps {
   summary: Summary;
 }
 
-const COLORS = ['#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#EC4899'];
 
 export function FinanceCharts({ expensesByCategory, summary }: FinanceChartsProps) {
-  const pieData = expensesByCategory.map((row) => ({
+  const pieData = comCoresPorCategoria(expensesByCategory).map((row) => ({
     name: row.category,
     value: row.total,
+    fill: row.fill,
   }));
 
   const barData = [
@@ -53,8 +54,8 @@ export function FinanceCharts({ expensesByCategory, summary }: FinanceChartsProp
                 paddingAngle={4}
                 stroke="#1e293b"
               >
-                {pieData.map((_, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                {pieData.map((item) => (
+                  <Cell key={item.name} fill={item.fill} />
                 ))}
               </Pie>
               <Tooltip
