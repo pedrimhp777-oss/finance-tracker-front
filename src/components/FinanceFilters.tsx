@@ -23,8 +23,10 @@ interface FinanceFiltersProps {
   setSelectedYear: (value: string) => void;
   selectedDay: string;
   setSelectedDay: (value: string) => void;
-  /** Ano mais antigo presente no histórico do usuário (deriva a lista). */
-  minYear: number;
+  /** Anos com transações, do servidor (`/transactions/years`).
+   * Antes a lista era derivada das transações já carregadas — só a página
+   * atual e já filtrada pelo ano, então anos antigos desapareciam. */
+  years: number[];
 }
 
 /** Dias do mês selecionado (29..31 quando mês/ano incompletos). */
@@ -49,7 +51,7 @@ export function FinanceFilters({
   setSelectedYear,
   selectedDay,
   setSelectedDay,
-  minYear,
+  years,
 }: FinanceFiltersProps) {
   const months = [
     { value: '', label: 'Todos os meses' },
@@ -67,14 +69,10 @@ export function FinanceFilters({
     { value: '12', label: 'Dezembro' },
   ];
 
-  const currentYear = new Date().getFullYear();
-  // Lista de anos derivada do histórico do usuário (mais recente primeiro),
-  // sempre incluindo o próximo ano para lançamentos antecipados.
-  const lastYear = Math.max(currentYear + 1, minYear);
-  const years: string[] = [];
-  for (let y = lastYear; y >= Math.min(minYear, currentYear); y--) {
-    years.push(String(y));
-  }
+  // O servidor devolve o histórico completo, do mais recente ao mais antigo.
+  // Conta sem transações não tem ano nenhum: mostra o atual para o select não
+  // ficar vazio (escolher ano sem dado é inútil, mas o campo vazio confunde).
+  const yearOptions = years.length > 0 ? years : [new Date().getFullYear()];
 
   const dayEnabled = selectedMonth !== '' && selectedYear !== '';
   const maxDay = daysInSelectedMonth(selectedMonth, selectedYear);
@@ -145,8 +143,8 @@ export function FinanceFilters({
           className={selectClass}
         >
           <option value="">Todos os Anos</option>
-          {years.map((y) => (
-            <option key={y} value={y}>
+          {yearOptions.map((y) => (
+            <option key={y} value={String(y)}>
               {y}
             </option>
           ))}

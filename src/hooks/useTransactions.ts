@@ -51,6 +51,8 @@ export function useTransactions(filters: TransactionFilters) {
   /** Paginação: "Carregar mais" mantém a tabela inteira na tela. */
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
+  /** Anos com transações (histórico completo, não só a página atual). */
+  const [years, setYears] = useState<number[]>([]);
   const hasLoadedRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -76,7 +78,7 @@ export function useTransactions(filters: TransactionFilters) {
           ...filterParams(currentFilters),
           skip,
           limit: PAGE_SIZE,
-        };        const [listRes, summaryRes, categoriesRes] = await Promise.all([
+        };        const [listRes, summaryRes, categoriesRes, yearsRes] = await Promise.all([
           api.get<Transaction[]>('/transactions/', {
             params,
             signal: controller.signal,
@@ -89,6 +91,13 @@ export function useTransactions(filters: TransactionFilters) {
             params: filterParams(currentFilters),
             signal: controller.signal,
           }),
+          // Anos só mudam quando a lista é substituída; paginar não os altera.
+          mode === 'replace'
+            ? api.get<number[]>('/transactions/years', {
+                params: { timezone_name: userTimezone },
+                signal: controller.signal,
+              })
+            : Promise.resolve({ data: null }),
         ]);
         const page = listRes.data.map((t) => ({ ...t, amount: Number(t.amount) }));
         setTransactions((prev) => {
@@ -109,6 +118,7 @@ export function useTransactions(filters: TransactionFilters) {
             total: Number(row.total),
           })),
         );
+        if (yearsRes.data) setYears(yearsRes.data.map(Number));
         setHasMore(page.length === PAGE_SIZE);
         hasLoadedRef.current = true;
       } catch (err) {
@@ -184,6 +194,7 @@ export function useTransactions(filters: TransactionFilters) {
     refreshing,
     loadingMore,
     hasMore,
+    years,
     loadMore,
     createTransaction,
     updateTransaction,
