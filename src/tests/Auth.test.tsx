@@ -96,4 +96,20 @@ describe('Auth', () => {
       });
     });
   });
+
+  it('não envia cadastro com senha acima de 72 bytes (F7)', async () => {
+    const user = userEvent.setup();
+    render(<Auth />);
+    await user.click(screen.getByRole('button', { name: /cadastre-se$/i }));
+    await user.type(screen.getByLabelText(/nome/i), 'Pedro');
+    await user.type(screen.getByLabelText(/e-mail/i), 'novo@email.com');
+    // 37 acentos = 74 bytes, mas só 37 caracteres: `maxLength` não pegaria.
+    await user.type(screen.getByLabelText(/senha/i), 'á'.repeat(37));
+    await user.click(screen.getByRole('button', { name: /^cadastrar$/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/72 bytes/i)).toBeInTheDocument();
+    });
+    expect(mockedApi).not.toHaveBeenCalled();
+  });
 });
