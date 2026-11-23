@@ -4,6 +4,7 @@ import { Auth } from './pages/Auth';
 import { Dashboard } from './pages/Dashboard';
 import { ResetPassword } from './pages/PasswordRecovery';
 import { clearResetTokenFromUrl, readResetToken } from './utils/resetLink';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 const MainContent: React.FC = () => {
   const { authenticated, loading } = useAuth();
@@ -33,7 +34,11 @@ const MainContent: React.FC = () => {
 export default function App() {
   return (
     <AuthProvider>
-      <MainContent />
+      {/* Dentro do provider: um erro na interface não derruba a sessão, então
+          "Tentar novamente" não exige novo login. */}
+      <ErrorBoundary>
+        <MainContent />
+      </ErrorBoundary>
     </AuthProvider>
   );
 }
